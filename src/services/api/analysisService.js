@@ -1,4 +1,6 @@
 import mockAnalyses from "@/services/mockData/analyses.json";
+import React from "react";
+import Error from "@/components/ui/Error";
 // Optimized minimal delay for better performance
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -205,11 +207,166 @@ const extractKeywords = (text) => {
 };
 
 const analyzeTopics = (content, url, domainNiche = null) => {
+  // Enhanced NLP entity detection with categorization
+  const detectNamedEntities = (text) => {
+    const entities = {
+      PERSON: [],
+      ORGANIZATION: [],
+      PRODUCT: [],
+      LOCATION: [],
+      OTHER: []
+    };
+
+    // Person name patterns (enhanced detection)
+    const personPatterns = [
+      /\b([A-Z][a-z]+ [A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/g, // Full names
+      /\b(Dr\.|Mr\.|Ms\.|Mrs\.|Prof\.|CEO|CTO|CMO|President)\s+([A-Z][a-z]+ [A-Z][a-z]+)\b/g, // Titles + names
+      /\b([A-Z][a-z]+)\s+(founded|created|developed|designed|built|invented)\b/g, // Creator patterns
+    ];
+
+    // Organization patterns (enhanced)
+    const orgPatterns = [
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(Inc\.|LLC|Corp\.|Corporation|Company|Ltd\.|Limited|Foundation|Institute|University|College)\b/g,
+      /\b(Google|Microsoft|Apple|Amazon|Facebook|Meta|Twitter|LinkedIn|Instagram|TikTok|YouTube|Netflix|Spotify|Airbnb|Uber|Tesla|OpenAI|GitHub|Slack|Zoom|Shopify|WordPress|Salesforce|Oracle|IBM|Intel|NVIDIA|AMD)\b/g,
+      /\b([A-Z]{2,})\s+(API|SDK|Platform|Service|Cloud|Analytics|Ads|Business|Developer|Enterprise)\b/g
+    ];
+
+    // Product/Service patterns (enhanced)
+    const productPatterns = [
+      /\b(ChatGPT|GPT-4|BERT|TensorFlow|React|Vue\.js|Angular|Node\.js|Python|JavaScript|TypeScript|HTML5|CSS3|WordPress|Shopify|WooCommerce|Magento|Drupal)\b/g,
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(API|SDK|Framework|Library|Tool|Platform|Software|App|Application|Plugin|Extension|Widget|CMS|CRM|ERP)\b/g,
+      /\b(iPhone|iPad|Android|Windows|macOS|Linux|Chrome|Firefox|Safari|Edge)\b/g
+    ];
+
+    // Location patterns (enhanced)
+    const locationPatterns = [
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s+(CA|NY|TX|FL|WA|IL|PA|OH|GA|NC|MI|NJ|VA|WA|AZ|MA|TN|IN|MO|MD|WI|CO|MN|SC|AL|LA|KY|OR|OK|CT|UT|IA|NV|AR|MS|KS|NM|NE|WV|ID|HI|ME|NH|RI|MT|DE|SD|ND|AK|VT|WY)\b/g, // US Cities
+      /\b(New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|Nashville|Detroit|Portland|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Long Beach|Kansas City|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|St. Louis|Stockton|Pittsburgh|Saint Paul|Cincinnati|Anchorage|Henderson|Greensboro|Plano|Newark|Toledo|Lincoln|Orlando|Chula Vista|Jersey City|Chandler|Buffalo|Durham|St. Petersburg|Irvine|Laredo|Lubbock|Gilbert|Winston-Salem|Glendale|Reno|Hialeah|Garland|Chesapeake|Irving|North Las Vegas|Scottsdale|Baton Rouge|Fremont|Richmond|Boise|San Bernardino)\b/g, // Major US cities
+      /\b(United States|USA|UK|United Kingdom|Canada|Australia|Germany|France|Italy|Spain|Japan|China|India|Brazil|Mexico|Russia|South Korea|Netherlands|Sweden|Norway|Denmark|Finland|Switzerland|Austria|Belgium|Portugal|Ireland|New Zealand|Singapore|Hong Kong|Taiwan|Thailand|Malaysia|Indonesia|Philippines|Vietnam|South Africa|Egypt|Israel|UAE|Saudi Arabia|Turkey|Greece|Poland|Czech Republic|Hungary|Romania|Bulgaria|Croatia|Serbia|Slovenia|Slovakia|Estonia|Latvia|Lithuania|Ukraine|Belarus|Moldova|Georgia|Armenia|Azerbaijan|Kazakhstan|Uzbekistan|Kyrgyzstan|Tajikistan|Turkmenistan|Afghanistan|Pakistan|Bangladesh|Sri Lanka|Nepal|Bhutan|Myanmar|Cambodia|Laos|Mongolia|North Korea|Iran|Iraq|Jordan|Lebanon|Syria|Yemen|Oman|Qatar|Bahrain|Kuwait|Cyprus|Malta|Iceland|Greenland|Faroe Islands|Andorra|Monaco|Liechtenstein|San Marino|Vatican City|Luxembourg|Albania|Macedonia|Bosnia and Herzegovina|Montenegro|Kosovo)\b/g // Countries
+    ];
+
+    // Extract persons
+    personPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const entity = match[1] || match[2] || match[0];
+        if (entity && entity.length > 3 && !entities.PERSON.some(p => p === entity)) {
+          entities.PERSON.push(entity);
+        }
+      }
+    });
+
+    // Extract organizations
+    orgPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const entity = match[1] || match[0];
+        if (entity && entity.length > 2 && !entities.ORGANIZATION.some(o => o === entity)) {
+          entities.ORGANIZATION.push(entity);
+        }
+      }
+    });
+
+    // Extract products
+    productPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const entity = match[1] || match[0];
+        if (entity && entity.length > 2 && !entities.PRODUCT.some(p => p === entity)) {
+          entities.PRODUCT.push(entity);
+        }
+      }
+    });
+
+    // Extract locations
+    locationPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const entity = match[1] || match[0];
+        if (entity && entity.length > 2 && !entities.LOCATION.some(l => l === entity)) {
+          entities.LOCATION.push(entity);
+        }
+      }
+    });
+
+    return entities;
+  };
+
+  // Enhanced subtopic detection using semantic relationships
+  const detectSubtopics = (mainTopic, keywords, entities) => {
+    const subtopics = [];
+    const mainTopicWords = mainTopic.toLowerCase().split(' ');
+    
+    // Find semantically related keywords
+    const relatedKeywords = keywords.filter(k => {
+      const keywordWords = k.word.toLowerCase().split(' ');
+      // Check for semantic relationships
+      const isRelated = mainTopicWords.some(mainWord => 
+        keywordWords.some(keyWord => 
+          keyWord.includes(mainWord) || 
+          mainWord.includes(keyWord) ||
+          // Domain-specific semantic relationships
+          (mainWord === 'ai' && ['machine', 'learning', 'neural', 'deep', 'algorithm'].includes(keyWord)) ||
+          (mainWord === 'marketing' && ['content', 'social', 'digital', 'advertising', 'campaign'].includes(keyWord)) ||
+          (mainWord === 'development' && ['programming', 'coding', 'framework', 'library', 'api'].includes(keyWord)) ||
+          (mainWord === 'seo' && ['keyword', 'ranking', 'optimization', 'search', 'google'].includes(keyWord))
+        )
+      );
+      return isRelated && k.frequency >= 5; // Minimum frequency threshold
+    });
+
+    // Group related keywords into subtopics
+    const topicGroups = {};
+    relatedKeywords.forEach(keyword => {
+      const keywordLower = keyword.word.toLowerCase();
+      let groupKey = null;
+      
+      // Find existing group or create new one
+      Object.keys(topicGroups).forEach(key => {
+        if (keywordLower.includes(key) || key.includes(keywordLower)) {
+          groupKey = key;
+        }
+      });
+      
+      if (!groupKey) {
+        groupKey = keywordLower;
+        topicGroups[groupKey] = [];
+      }
+      
+      topicGroups[groupKey].push(keyword);
+    });
+
+    // Convert groups to subtopics
+    Object.entries(topicGroups).forEach(([groupKey, keywords]) => {
+      if (keywords.length >= 2) { // At least 2 related keywords
+        const totalFreq = keywords.reduce((sum, k) => sum + k.frequency, 0);
+        const avgRelevance = keywords.reduce((sum, k) => sum + (k.relevance || 50), 0) / keywords.length;
+        
+        subtopics.push({
+          name: keywords[0].word.charAt(0).toUpperCase() + keywords[0].word.slice(1),
+          frequency: totalFreq,
+          relevance: Math.min(95, avgRelevance + 10), // Boost subtopic relevance
+          relatedEntities: [
+            ...new Set([
+              ...keywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1)),
+              ...Object.values(entities).flat().filter(e => 
+                e.toLowerCase().includes(groupKey) || groupKey.includes(e.toLowerCase())
+              ).slice(0, 2)
+            ])
+          ],
+          contextExamples: extractTopicContext(groupKey, content.text, 2)
+        });
+      }
+    });
+
+return subtopics.slice(0, 5); // Limit to top 5 subtopics
+  };
   const { title, headings, text } = content;
   const allText = `${title} ${headings.join(' ')} ${text}`.toLowerCase();
   const fullText = `${title}. ${headings.join('. ')}. ${text}`;
   
-  const keywords = extractKeywords(allText);
+  // Extract named entities for the page
+  const namedEntities = detectNamedEntities(fullText);
   
   // Enhanced topic patterns with domain-specific weighting
   const topicPatterns = {
@@ -258,22 +415,37 @@ const analyzeTopics = (content, url, domainNiche = null) => {
       const contextExamples = extractTopicContext(topicName, fullText, 2);
       
       const subtopics = matchingKeywords.slice(0, 3).map(({ word, frequency }) => ({
-        name: word.charAt(0).toUpperCase() + word.slice(1),
-frequency,
+name: word.charAt(0).toUpperCase() + word.slice(1),
+        frequency,
         relevance: Math.min(90, baseRelevance - 10 + Math.random() * 20),
         relatedEntities: matchingKeywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1)),
-        contextExamples: extractTopicContext(topicName, content.text, 3)
+        contextExamples: extractTopicContext(topicName, content.text, 3),
+        entities: namedEntities // Add detected entities to subtopics
       }));
 
+// Enhanced subtopic detection
+      const enhancedSubtopics = detectSubtopics(topicName, matchingKeywords, namedEntities);
+      
       topics.push({
         name: topicName,
         frequency: totalFreq,
         relevance: baseRelevance,
-        subtopics,
+        subtopics: enhancedSubtopics,
         relatedEntities: matchingKeywords.map(({ word }) => word.charAt(0).toUpperCase() + word.slice(1)),
         contextExamples,
         sourceUrl: url,
-        pages: [url] // Track which pages contain this topic
+        pages: [url], // Track which pages contain this topic
+        entities: namedEntities, // Add categorized entities
+        entityFrequency: Object.fromEntries(
+          Object.entries(namedEntities).map(([category, entities]) => [
+            category, 
+            entities.reduce((freq, entity) => {
+              const entityFreq = (content.text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+              freq[entity] = entityFreq;
+              return freq;
+            }, {})
+          ])
+        )
       });
     }
   });
@@ -284,12 +456,23 @@ frequency,
     const contextExamples = extractTopicContext(word, fullText, 1);
     
     topics.push({
-      name: word.charAt(0).toUpperCase() + word.slice(1),
+name: word.charAt(0).toUpperCase() + word.slice(1),
       frequency,
       relevance: Math.min(85, 40 + frequency * 2),
-subtopics: [],
+      subtopics: [],
       relatedEntities: [word.charAt(0).toUpperCase() + word.slice(1)],
       contextExamples: extractTopicContext(word, content.text, 2),
+      entities: namedEntities, // Add entities to standalone topics
+      entityFrequency: Object.fromEntries(
+        Object.entries(namedEntities).map(([category, entities]) => [
+          category,
+          entities.reduce((freq, entity) => {
+            const entityFreq = (content.text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+            freq[entity] = entityFreq;
+            return freq;  
+          }, {})
+        ])
+      ),
       sourceUrl: url,
       pages: [url]
     });
@@ -890,7 +1073,22 @@ const performSemanticAnalysis = async (url, onProgress) => {
     const domainNiche = detectDomainNiche(allContent);
 // Analyze each page with domain context
     pages.forEach(page => {
-      page.topics = analyzeTopics(page.content, page.url, domainNiche);
+page.topics = analyzeTopics(page.content, page.url, domainNiche);
+      
+      // Extract and aggregate entities across pages
+      page.entities = page.topics.reduce((allEntities, topic) => {
+        if (topic.entities) {
+          Object.entries(topic.entities).forEach(([category, entities]) => {
+            if (!allEntities[category]) allEntities[category] = [];
+            entities.forEach(entity => {
+              if (!allEntities[category].includes(entity)) {
+                allEntities[category].push(entity);
+              }
+            });
+          });
+        }
+        return allEntities;
+      }, {});
       page.entities = extractEntities(page.content.text);
       page.seoMetrics = analyzeSEO(page.content, page.url);
     });
@@ -903,13 +1101,15 @@ const performSemanticAnalysis = async (url, onProgress) => {
     allTopics.forEach(topic => {
       const key = topic.name.toLowerCase();
       if (!topicFrequencyMap.has(key)) {
-        topicFrequencyMap.set(key, {
+topicFrequencyMap.set(key, {
           name: topic.name,
           totalMentions: 0,
           pageCount: 0,
           relevanceScores: [],
           contextExamples: [],
-          relatedEntities: new Set()
+          relatedEntities: new Set(),
+          entities: { PERSON: new Set(), ORGANIZATION: new Set(), PRODUCT: new Set(), LOCATION: new Set(), OTHER: new Set() },
+          entityFrequency: { PERSON: {}, ORGANIZATION: {}, PRODUCT: {}, LOCATION: {}, OTHER: {} }
         });
       }
       
@@ -918,7 +1118,23 @@ const performSemanticAnalysis = async (url, onProgress) => {
       aggregated.pageCount += 1;
       aggregated.relevanceScores.push(topic.relevance || 0);
       if (topic.contextExamples) aggregated.contextExamples.push(...topic.contextExamples);
-      if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
+if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
+      
+      // Aggregate categorized entities
+      if (topic.entities) {
+        Object.entries(topic.entities).forEach(([category, entities]) => {
+          entities.forEach(entity => aggregated.entities[category].add(entity));
+        });
+      }
+      
+      // Aggregate entity frequencies
+      if (topic.entityFrequency) {
+        Object.entries(topic.entityFrequency).forEach(([category, frequencies]) => {
+          Object.entries(frequencies).forEach(([entity, freq]) => {
+            aggregated.entityFrequency[category][entity] = (aggregated.entityFrequency[category][entity] || 0) + freq;
+          });
+        });
+      }
     });
 
     // Convert aggregated data to final topic list

@@ -241,7 +241,7 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                   
 <div>
                     <h4 className="font-medium text-slate-300 mb-4">
-                      Enhanced Topic Analysis {hasMultiplePages && <span className="text-xs text-slate-500">(Cross-page frequency tracking)</span>}
+                      Enhanced NLP Topic & Entity Analysis {hasMultiplePages && <span className="text-xs text-slate-500">(Cross-page frequency tracking)</span>}
                     </h4>
                     <div className="space-y-4">
                       {analysis.domainNiche && (
@@ -252,7 +252,7 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                           </div>
                           <p className="text-white font-semibold">{analysis.domainNiche.primary}</p>
                           <p className="text-xs text-slate-400 mt-1">
-                            Topics are ranked by relevance to this domain for better insights
+                            Topics and entities are ranked by relevance to this domain using NLP analysis
                           </p>
                         </div>
                       )}
@@ -275,6 +275,9 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                                     <span>• {topic.pageCount} pages • Avg: {Math.round(topic.avgFrequencyPerPage || topic.frequency)}/page</span>
                                   )}
                                   <span>• {topic.crossPageRelevance || topic.relevance}% relevance</span>
+                                  {topic.entities && Object.values(topic.entities).some(entities => entities.length > 0) && (
+                                    <span>• {Object.values(topic.entities).reduce((total, entities) => total + entities.length, 0)} entities</span>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex-shrink-0 w-16 bg-slate-700 rounded-full h-2 ml-4">
@@ -285,8 +288,49 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                               </div>
                             </div>
                             
+                            {/* Named Entities Section */}
+                            {topic.entities && Object.values(topic.entities).some(entities => entities.length > 0) && (
+                              <div className="mb-3">
+                                <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Named Entities (NLP)</h6>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {Object.entries(topic.entities).map(([category, entities]) =>
+                                    entities.length > 0 && (
+                                      <div key={category} className="flex items-center space-x-2">
+                                        <ApperIcon 
+                                          name={category === 'PERSON' ? 'User' : category === 'ORGANIZATION' ? 'Building' : category === 'PRODUCT' ? 'Package' : category === 'LOCATION' ? 'MapPin' : 'Tag'} 
+                                          className={`w-3 h-3 ${
+                                            category === 'PERSON' ? 'text-blue-400' : 
+                                            category === 'ORGANIZATION' ? 'text-green-400' : 
+                                            category === 'PRODUCT' ? 'text-purple-400' : 
+                                            category === 'LOCATION' ? 'text-orange-400' : 'text-slate-400'
+                                          }`} 
+                                        />
+                                        <span className="text-xs text-slate-400 capitalize min-w-[60px]">{category.toLowerCase()}:</span>
+                                        <div className="flex flex-wrap gap-1">
+                                          {entities.slice(0, 3).map((entity, entityIndex) => (
+                                            <span 
+                                              key={entityIndex} 
+                                              className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-xs"
+                                            >
+                                              {entity}
+                                              {topic.entityFrequency?.[category]?.[entity] && (
+                                                <span className="ml-1 opacity-60">({topic.entityFrequency[category][entity]})</span>
+                                              )}
+                                            </span>
+                                          ))}
+                                          {entities.length > 3 && (
+                                            <span className="text-xs text-slate-500">+{entities.length - 3}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            
                             {topic.contextExamples && topic.contextExamples.length > 0 && (
-                              <div className="space-y-2">
+                              <div className="space-y-2 mb-3">
                                 <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wide">Context Examples</h6>
                                 {topic.contextExamples.slice(0, 2).map((context, contextIndex) => (
                                   <div key={contextIndex} className="p-2 bg-slate-900 rounded text-xs text-slate-300 italic border-l-2 border-primary/30">
@@ -298,6 +342,7 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                             
                             {topic.relatedEntities && topic.relatedEntities.length > 0 && (
                               <div className="mt-3">
+                                <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Traditional Keywords</h6>
                                 <div className="flex flex-wrap gap-1">
                                   {topic.relatedEntities.slice(0, 5).map((entity, entityIndex) => (
                                     <span key={entityIndex} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
@@ -321,12 +366,12 @@ const AnalysisResults = ({ analysis, onRetry }) => {
             <TopicHierarchy topics={analysis.topics} />
           )}
 
-          {activeTab === "clusters" && (
+{activeTab === "clusters" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Semantic Topic Clusters</h3>
-                  <p className="text-slate-400">Topics grouped by semantic similarity for strategic content planning</p>
+<h3 className="text-lg font-semibold text-white mb-2">NLP-Enhanced Semantic Clusters</h3>
+                  <p className="text-slate-400">Topics and entities grouped by semantic similarity with named entity analysis</p>
                 </div>
                 {analysis.domainNiche && (
                   <div className="flex items-center space-x-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
@@ -411,10 +456,45 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                           </div>
                         )}
 
-                        {/* Related Entities */}
+{/* Named Entities by Category */}
+                        {cluster.categorizedEntities && Object.values(cluster.categorizedEntities).some(entities => entities.length > 0) && (
+                          <div>
+                            <h5 className="text-sm font-medium text-slate-300 mb-2">Named Entities (NLP)</h5>
+                            <div className="space-y-2">
+                              {Object.entries(cluster.categorizedEntities).map(([category, entities]) =>
+                                entities.length > 0 && (
+                                  <div key={category} className="flex items-center space-x-2">
+                                    <ApperIcon 
+                                      name={category === 'PERSON' ? 'User' : category === 'ORGANIZATION' ? 'Building' : category === 'PRODUCT' ? 'Package' : category === 'LOCATION' ? 'MapPin' : 'Tag'} 
+                                      className={`w-3 h-3 ${
+                                        category === 'PERSON' ? 'text-blue-400' : 
+                                        category === 'ORGANIZATION' ? 'text-green-400' : 
+                                        category === 'PRODUCT' ? 'text-purple-400' : 
+                                        category === 'LOCATION' ? 'text-orange-400' : 'text-slate-400'
+                                      }`} 
+                                    />
+                                    <span className="text-xs text-slate-400 capitalize min-w-[60px]">{category.toLowerCase()}:</span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {entities.slice(0, 4).map((entity, index) => (
+                                        <span key={index} className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-xs">
+                                          {entity}
+                                        </span>
+                                      ))}
+                                      {entities.length > 4 && (
+                                        <span className="text-xs text-slate-500">+{entities.length - 4}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Traditional Keywords */}
                         {cluster.uniqueEntities && cluster.uniqueEntities.length > 0 && (
                           <div>
-                            <h5 className="text-sm font-medium text-slate-300 mb-2">Related Entities</h5>
+                            <h5 className="text-sm font-medium text-slate-300 mb-2">Traditional Keywords</h5>
                             <div className="flex flex-wrap gap-1">
                               {cluster.uniqueEntities.slice(0, 6).map((entity, entityIndex) => (
                                 <span key={entityIndex} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
@@ -431,12 +511,12 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                             <ApperIcon name="Lightbulb" className="w-4 h-4 text-warning" />
                             <h5 className="text-sm font-medium text-warning">Content Planning Insight</h5>
                           </div>
-                          <p className="text-xs text-slate-400">
+<p className="text-xs text-slate-400">
                             {cluster.dominanceScore > 80 
-                              ? `High-opportunity cluster - consider creating pillar content around ${cluster.name.toLowerCase()} topics`
+                              ? `High-opportunity cluster with rich entity data - consider creating comprehensive pillar content around ${cluster.name.toLowerCase()} topics and entities`
                               : cluster.dominanceScore > 50
-                              ? `Moderate presence - could expand content in ${cluster.name.toLowerCase()} area`
-                              : `Emerging theme - monitor ${cluster.name.toLowerCase()} topics for growth potential`
+                              ? `Moderate presence with entity insights - could expand content targeting ${cluster.name.toLowerCase()} entities and topics`
+                              : `Emerging theme with entity potential - monitor ${cluster.name.toLowerCase()} topics and related entities for growth opportunities`
                             }
                           </p>
                         </div>
