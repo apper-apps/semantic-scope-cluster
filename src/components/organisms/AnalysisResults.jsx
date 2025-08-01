@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Card from "@/components/atoms/Card";
 import Button from "@/components/atoms/Button";
 import MetricCard from "@/components/molecules/MetricCard";
@@ -9,7 +9,6 @@ import SEOAudit from "@/components/organisms/SEOAudit";
 import ExportModal from "@/components/organisms/ExportModal";
 import ApperIcon from "@/components/ApperIcon";
 import { motion } from "framer-motion";
-
 const AnalysisResults = ({ analysis, onRetry }) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showExportModal, setShowExportModal] = useState(false);
@@ -24,7 +23,8 @@ const tabs = [
     { id: "seo", label: "SEO Audit", icon: "Search" }
   ];
 
-const metrics = [
+// Memoized calculations for better performance
+const metrics = useMemo(() => [
     {
       title: "Pages Crawled",
       value: analysis.pages?.length || 1,
@@ -55,11 +55,17 @@ const metrics = [
       color: analysis.seoMetrics.score >= 80 ? "success" : analysis.seoMetrics.score >= 60 ? "warning" : "error",
       description: "Overall SEO health"
     }
-  ];
+  ], [analysis.pages?.length, analysis.topics.length, analysis.entities, analysis.seoMetrics.score]);
 
   // Page type breakdown for multi-page analysis
-  const pageTypeBreakdown = analysis.crawlSummary?.pageTypes || analysis.seoMetrics?.pageTypes || {};
+  const pageTypeBreakdown = useMemo(() => 
+    analysis.crawlSummary?.pageTypes || analysis.seoMetrics?.pageTypes || {}, 
+    [analysis.crawlSummary?.pageTypes, analysis.seoMetrics?.pageTypes]
+  );
   const hasMultiplePages = (analysis.pages?.length || 0) > 1;
+
+  // Memoized top topics for performance
+  const topTopics = useMemo(() => analysis.topics.slice(0, 6), [analysis.topics]);
 
   return (
     <motion.div
@@ -247,8 +253,14 @@ const metrics = [
                       )}
                       
                       <div className="grid grid-cols-1 gap-3">
-                        {analysis.topics.slice(0, 6).map((topic, index) => (
-                          <div key={index} className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+                        {topTopics.map((topic, index) => (
+                          <motion.div 
+                            key={`${topic.name}-${index}`} 
+                            className="p-4 bg-slate-800 rounded-lg border border-slate-700"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <h5 className="font-medium text-white">{topic.name}</h5>
@@ -290,7 +302,7 @@ const metrics = [
                                 </div>
                               </div>
                             )}
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>

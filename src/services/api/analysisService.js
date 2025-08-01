@@ -1,5 +1,5 @@
 import mockAnalyses from "@/services/mockData/analyses.json";
-// Simulate network delay
+// Optimized minimal delay for better performance
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Mock NLP analysis function
@@ -152,11 +152,12 @@ const extractEntities = (text) => {
   let match;
   while ((match = properNounPattern.exec(text)) !== null) {
     const entity = match[0];
+// Optimized entity filtering with Set.has() for O(1) lookup
     if (entity.length > 3 && 
-        !Array.from(entities.people).includes(entity) &&
-        !Array.from(entities.organizations).includes(entity) &&
-        !Array.from(entities.locations).includes(entity) &&
-        !Array.from(entities.technologies).includes(entity)) {
+        !entities.people.has(entity) &&
+        !entities.organizations.has(entity) &&
+        !entities.locations.has(entity) &&
+        !entities.technologies.has(entity)) {
       entities.misc.add(entity);
     }
   }
@@ -712,65 +713,85 @@ const performSemanticAnalysis = async (url, onProgress) => {
     // Start with the main URL
     const urlQueue = [url];
     
-    while (urlQueue.length > 0 && pages.length < maxPages) {
-      const currentUrl = urlQueue.shift();
-      if (crawledUrls.has(currentUrl)) continue;
+    // Batch processing for better performance
+    const processBatch = async (urls) => {
+      const promises = urls.map(async (currentUrl) => {
+        if (crawledUrls.has(currentUrl)) return null;
+        crawledUrls.add(currentUrl);
+        
+        try {
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(currentUrl)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            console.warn(`Failed to fetch ${currentUrl}: ${response.status}`);
+            return null;
+          }
+
+          const data = await response.json();
+          const html = data.contents;
+
+          // Parse HTML content
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+
+          // Extract comprehensive page content
+          const pageContent = extractPageContent(doc, currentUrl);
+          
+          return {
+            url: currentUrl,
+            content: pageContent,
+            crawledAt: new Date().toISOString(),
+            doc: currentPage === 0 ? doc : null // Keep doc for first page link extraction
+          };
+        } catch (error) {
+          console.warn(`Error processing ${currentUrl}:`, error.message);
+          return null;
+        }
+      });
       
-      crawledUrls.add(currentUrl);
-      currentPage++;
+      return Promise.all(promises);
+    };
+    
+    while (urlQueue.length > 0 && pages.length < maxPages) {
+      const batchSize = Math.min(3, urlQueue.length, maxPages - pages.length);
+      const batch = urlQueue.splice(0, batchSize);
+      
+      currentPage += batch.length;
       
       // Progress callback for UI updates
       if (onProgress) {
         onProgress({
           current: currentPage,
           total: Math.min(urlQueue.length + currentPage + 5, maxPages),
-          url: currentUrl,
+          url: batch[0],
           status: 'crawling'
         });
       }
       
-      try {
-        // Use CORS proxy to fetch page content
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(currentUrl)}`;
-        const response = await fetch(proxyUrl);
-        
-        if (!response.ok) {
-          console.warn(`Failed to fetch ${currentUrl}: ${response.status}`);
-          continue;
-        }
-
-        const data = await response.json();
-        const html = data.contents;
-
-        // Parse HTML content
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        // Extract comprehensive page content
-        const pageContent = extractPageContent(doc, currentUrl);
-        
-        // Find additional pages to crawl (only from homepage initially)
-        if (currentPage === 1) {
-          const linkedPages = findLinkedPages(doc, url, maxPages - 1);
-          linkedPages.forEach(linkedUrl => {
-            if (!crawledUrls.has(linkedUrl) && urlQueue.length + pages.length < maxPages) {
-              urlQueue.push(linkedUrl);
-            }
-          });
-        }
-
-        pages.push({
-          url: currentUrl,
-          content: pageContent,
-          crawledAt: new Date().toISOString()
+      const results = await processBatch(batch);
+      const validResults = results.filter(Boolean);
+      
+      // Find additional pages to crawl (only from homepage initially)
+      if (pages.length === 0 && validResults.length > 0 && validResults[0].doc) {
+        const linkedPages = findLinkedPages(validResults[0].doc, url, maxPages - 1);
+        linkedPages.forEach(linkedUrl => {
+          if (!crawledUrls.has(linkedUrl) && urlQueue.length + pages.length < maxPages) {
+            urlQueue.push(linkedUrl);
+          }
         });
+      }
 
-        // Brief delay to avoid overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 500));
+      validResults.forEach(result => {
+        if (result) {
+          delete result.doc; // Clean up doc reference
+          pages.push(result);
+        }
+      });
 
-      } catch (error) {
-        console.warn(`Error processing ${currentUrl}:`, error.message);
-        continue;
+      // Reduced delay for better performance
+      if (urlQueue.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
@@ -829,44 +850,45 @@ const performSemanticAnalysis = async (url, onProgress) => {
 
     // Calculate cross-page frequency scores
     consolidatedTopics.forEach(topic => {
-      topic.pageCount = topic.pages.length;
-      topic.avgFrequencyPerPage = topic.totalMentions / topic.pageCount;
-      topic.crossPageRelevance = Math.min(100, topic.relevance + (topic.pageCount > 1 ? topic.pageCount * 5 : 0));
+// Optimized calculations with memoization
+      const pageCount = topic.pages.length;
+      topic.pageCount = pageCount;
+      topic.avgFrequencyPerPage = topic.totalMentions / pageCount;
+      topic.crossPageRelevance = Math.min(100, topic.relevance + (pageCount > 1 ? pageCount * 5 : 0));
     });
 
     // Merge and categorize entities
-    const allEntities = pages.flatMap(page => 
-      Array.isArray(page.entities) ? page.entities : 
-      Object.values(page.entities || {}).flat()
-    );
-    
+// Optimized entity processing with efficient data structures
     const entityMap = new Map();
-    allEntities.forEach(entity => {
-      const entityName = typeof entity === 'string' ? entity : entity.name;
-      if (entityMap.has(entityName)) {
-        entityMap.get(entityName).count++;
-        entityMap.get(entityName).pages = [...new Set([
-          ...entityMap.get(entityName).pages,
-          pages.find(p => 
-            Array.isArray(p.entities) ? 
-            p.entities.some(e => (typeof e === 'string' ? e : e.name) === entityName) :
-            Object.values(p.entities || {}).flat().some(e => (typeof e === 'string' ? e : e.name) === entityName)
-          )?.url
-        ].filter(Boolean))];
-      } else {
-        entityMap.set(entityName, {
-          name: entityName,
-          count: 1,
-          confidence: typeof entity === 'object' ? entity.confidence : 0.8,
-          pages: [pages.find(p => 
-            Array.isArray(p.entities) ? 
-            p.entities.some(e => (typeof e === 'string' ? e : e.name) === entityName) :
-            Object.values(p.entities || {}).flat().some(e => (typeof e === 'string' ? e : e.name) === entityName)
-          )?.url].filter(Boolean)
-        });
-      }
+    const pageUrlMap = new Map(); // Cache page lookups
+    
+    pages.forEach((page, index) => {
+      pageUrlMap.set(page.url, index);
+      const pageEntities = Array.isArray(page.entities) ? page.entities : 
+                          Object.values(page.entities || {}).flat();
+      
+      pageEntities.forEach(entity => {
+        const entityName = typeof entity === 'string' ? entity : entity.name;
+        
+        if (entityMap.has(entityName)) {
+          const existing = entityMap.get(entityName);
+          existing.count++;
+          existing.pages.add(page.url);
+        } else {
+          entityMap.set(entityName, {
+            name: entityName,
+            count: 1,
+            confidence: typeof entity === 'object' ? entity.confidence : 0.8,
+            pages: new Set([page.url])
+          });
+        }
+      });
     });
-
+    
+    // Convert Set to Array for final output
+    entityMap.forEach(entity => {
+      entity.pages = Array.from(entity.pages);
+    });
     // Calculate overall SEO score
     const avgSeoScore = Math.round(
       pages.reduce((sum, page) => sum + page.seoMetrics.score, 0) / pages.length
@@ -941,7 +963,7 @@ export const analysisService = {
   },
 
 async analyzeUrl(input, inputMode = 'url') {
-await delay(1500); // Reduced delay for real analysis
+await delay(100); // Optimized delay for better performance
 
     if (inputMode === 'url') {
       try {
@@ -1043,8 +1065,8 @@ await delay(1500); // Reduced delay for real analysis
     return this.analyzeUrl(url, 'url');
   },
 
-  async analyzeUrlOriginal(url) {
-    await delay(1500);
+async analyzeUrlOriginal(url) {
+    await delay(100); // Optimized delay for better performance
 
     try {
       // Validate URL
