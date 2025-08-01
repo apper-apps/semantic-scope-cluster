@@ -1,0 +1,333 @@
+[
+  {
+    "id": 1,
+    "url": "https://example.com/blog/ai-content-tools",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "topics": [
+      {
+        "name": "Artificial Intelligence",
+        "frequency": 45,
+        "relevance": 92,
+        "subtopics": [
+          {
+            "name": "Machine Learning",
+            "frequency": 23,
+            "relevance": 78,
+            "relatedEntities": ["TensorFlow", "Python", "Neural Networks"]
+          },
+          {
+            "name": "Natural Language Processing",
+            "frequency": 18,
+            "relevance": 85,
+            "relatedEntities": ["BERT", "GPT", "Transformers"]
+          }
+        ],
+        "relatedEntities": ["OpenAI", "Google AI", "Microsoft Azure"]
+      },
+      {
+        "name": "Content Creation",
+        "frequency": 38,
+        "relevance": 88,
+        "subtopics": [
+          {
+            "name": "Copywriting",
+            "frequency": 15,
+            "relevance": 72,
+            "relatedEntities": ["Headlines", "Marketing Copy", "Sales Pages"]
+          },
+          {
+            "name": "Blog Writing",
+            "frequency": 12,
+            "relevance": 69,
+            "relatedEntities": ["SEO Writing", "Content Strategy", "Editorial"]
+          }
+        ],
+        "relatedEntities": ["Content Marketing", "Digital Marketing", "Brand Voice"]
+      },
+      {
+        "name": "SEO Tools",
+        "frequency": 31,
+        "relevance": 84,
+        "subtopics": [
+          {
+            "name": "Keyword Research",
+            "frequency": 19,
+            "relevance": 76,
+            "relatedEntities": ["Google Keyword Planner", "SEMrush", "Ahrefs"]
+          },
+          {
+            "name": "Content Optimization",
+            "frequency": 14,
+            "relevance": 71,
+            "relatedEntities": ["Meta Tags", "Schema Markup", "Internal Linking"]
+          }
+        ],
+        "relatedEntities": ["Google Search Console", "Analytics", "SERP"]
+      },
+      {
+        "name": "Marketing Automation",
+        "frequency": 25,
+        "relevance": 79,
+        "subtopics": [
+          {
+            "name": "Email Marketing",
+            "frequency": 11,
+            "relevance": 65,
+            "relatedEntities": ["Mailchimp", "ConvertKit", "Automation Sequences"]
+          }
+        ],
+        "relatedEntities": ["CRM", "Lead Generation", "Sales Funnel"]
+      },
+      {
+        "name": "Digital Transformation",
+        "frequency": 22,
+        "relevance": 75,
+        "subtopics": [
+          {
+            "name": "Business Process Automation",
+            "frequency": 8,
+            "relevance": 58,
+            "relatedEntities": ["Workflow", "Efficiency", "ROI"]
+          }
+        ],
+        "relatedEntities": ["Cloud Computing", "SaaS", "Enterprise Software"]
+      }
+    ],
+    "entities": [
+      "OpenAI", "ChatGPT", "GPT-4", "Google AI", "Microsoft Azure", 
+      "TensorFlow", "Python", "Neural Networks", "BERT", "Transformers",
+      "Content Marketing", "Digital Marketing", "SEO", "SERP", "Analytics",
+      "Mailchimp", "ConvertKit", "CRM", "SaaS", "Cloud Computing"
+    ],
+    "seoMetrics": {
+      "score": 78,
+      "title": {
+        "score": 85,
+        "length": 58,
+        "hasKeywords": true
+      },
+      "meta": {
+        "score": 72,
+        "length": 157,
+        "hasCTA": true
+      },
+      "headings": [
+        { "level": 1, "text": "AI Content Tools: The Future of Content Creation", "score": 90 },
+        { "level": 2, "text": "Machine Learning in Content Generation", "score": 82 },
+        { "level": 2, "text": "SEO Benefits of AI Writing Tools", "score": 88 },
+        { "level": 3, "text": "Natural Language Processing Applications", "score": 75 },
+        { "level": 3, "text": "Content Optimization Strategies", "score": 79 }
+      ],
+      "schema": {
+        "hasJsonLD": true,
+        "isValid": true,
+        "types": ["Article", "BlogPosting", "Organization"]
+      }
+    },
+    "urlSuggestions": [
+      "ai/content-tools",
+      "ai/content-tools/machine-learning",
+      "ai/content-tools/nlp-applications",
+      "marketing/ai-automation",
+      "seo/ai-optimization-tools",
+      "content/ai-writing-assistants",
+      "digital-marketing/ai-strategies"
+    ]
+  },
+  {
+    "id": 2,
+    "url": "https://techblog.example.com/web-development-trends",
+    "timestamp": "2024-01-14T14:22:00Z",
+    "topics": [
+      {
+        "name": "Web Development",
+        "frequency": 52,
+        "relevance": 94,
+        "subtopics": [
+          {
+            "name": "Frontend Frameworks",
+            "frequency": 28,
+            "relevance": 87,
+            "relatedEntities": ["React", "Vue.js", "Angular", "Next.js"]
+          },
+          {
+            "name": "Backend Technologies",
+            "frequency": 19,
+            "relevance": 81,
+            "relatedEntities": ["Node.js", "Python", "GraphQL", "REST APIs"]
+          }
+        ],
+        "relatedEntities": ["JavaScript", "TypeScript", "HTML5", "CSS3"]
+      },
+      {
+        "name": "Performance Optimization",
+        "frequency": 34,
+        "relevance": 89,
+        "subtopics": [
+          {
+            "name": "Core Web Vitals",
+            "frequency": 16,
+            "relevance": 83,
+            "relatedEntities": ["LCP", "FID", "CLS", "PageSpeed Insights"]
+          },
+          {
+            "name": "Image Optimization",
+            "frequency": 12,
+            "relevance": 76,
+            "relatedEntities": ["WebP", "Lazy Loading", "CDN", "Compression"]
+          }
+        ],
+        "relatedEntities": ["Google Lighthouse", "Performance Metrics", "User Experience"]
+      },
+      {
+        "name": "Progressive Web Apps",
+        "frequency": 27,
+        "relevance": 82,
+        "subtopics": [
+          {
+            "name": "Service Workers",
+            "frequency": 14,
+            "relevance": 78,
+            "relatedEntities": ["Caching", "Offline Functionality", "Push Notifications"]
+          }
+        ],
+        "relatedEntities": ["PWA", "Mobile First", "App Shell", "Manifest"]
+      }
+    ],
+    "entities": [
+      "React", "Vue.js", "Angular", "Next.js", "Node.js", "Python", 
+      "JavaScript", "TypeScript", "GraphQL", "REST APIs", "PWA",
+      "Google Lighthouse", "Core Web Vitals", "WebP", "CDN"
+    ],
+    "seoMetrics": {
+      "score": 85,
+      "title": {
+        "score": 92,
+        "length": 54,
+        "hasKeywords": true
+      },
+      "meta": {
+        "score": 88,
+        "length": 149,
+        "hasCTA": true
+      },
+      "headings": [
+        { "level": 1, "text": "Web Development Trends 2024", "score": 95 },
+        { "level": 2, "text": "Frontend Framework Evolution", "score": 89 },
+        { "level": 2, "text": "Performance-First Development", "score": 91 },
+        { "level": 3, "text": "Core Web Vitals Implementation", "score": 86 }
+      ],
+      "schema": {
+        "hasJsonLD": true,
+        "isValid": true,
+        "types": ["Article", "TechArticle"]
+      }
+    },
+    "urlSuggestions": [
+      "web-development/trends-2024",
+      "web-development/frontend-frameworks",
+      "web-development/performance-optimization",
+      "development/progressive-web-apps",
+      "tech/web-vitals-guide",
+      "programming/javascript-frameworks"
+    ]
+  },
+  {
+    "id": 3,
+    "url": "https://marketing.example.com/social-media-strategy",
+    "timestamp": "2024-01-13T09:45:00Z",
+    "topics": [
+      {
+        "name": "Social Media Marketing",
+        "frequency": 48,
+        "relevance": 91,
+        "subtopics": [
+          {
+            "name": "Content Strategy",
+            "frequency": 24,
+            "relevance": 86,
+            "relatedEntities": ["Content Calendar", "Visual Content", "User Generated Content"]
+          },
+          {
+            "name": "Influencer Marketing",
+            "frequency": 17,
+            "relevance": 79,
+            "relatedEntities": ["Micro Influencers", "Brand Partnerships", "ROI Tracking"]
+          }
+        ],
+        "relatedEntities": ["Facebook", "Instagram", "TikTok", "LinkedIn", "Twitter"]
+      },
+      {
+        "name": "Digital Advertising",
+        "frequency": 35,
+        "relevance": 84,
+        "subtopics": [
+          {
+            "name": "Paid Social",
+            "frequency": 21,
+            "relevance": 81,
+            "relatedEntities": ["Facebook Ads", "Instagram Ads", "LinkedIn Ads"]
+          },
+          {
+            "name": "Ad Targeting",
+            "frequency": 13,
+            "relevance": 74,
+            "relatedEntities": ["Audience Segmentation", "Retargeting", "Lookalike Audiences"]
+          }
+        ],
+        "relatedEntities": ["Google Ads", "Meta Business", "Campaign Management"]
+      },
+      {
+        "name": "Analytics and Metrics",
+        "frequency": 29,
+        "relevance": 87,
+        "subtopics": [
+          {
+            "name": "Social Media Analytics",
+            "frequency": 18,
+            "relevance": 83,
+            "relatedEntities": ["Engagement Rate", "Reach", "Impressions", "Click-through Rate"]
+          }
+        ],
+        "relatedEntities": ["Google Analytics", "Social Media Insights", "KPIs", "ROI"]
+      }
+    ],
+    "entities": [
+      "Facebook", "Instagram", "TikTok", "LinkedIn", "Twitter", "YouTube",
+      "Google Analytics", "Meta Business", "Hootsuite", "Buffer",
+      "Content Calendar", "Engagement Rate", "ROI", "KPIs"
+    ],
+    "seoMetrics": {
+      "score": 72,
+      "title": {
+        "score": 78,
+        "length": 62,
+        "hasKeywords": true
+      },
+      "meta": {
+        "score": 69,
+        "length": 163,
+        "hasCTA": false
+      },
+      "headings": [
+        { "level": 1, "text": "Social Media Strategy Guide 2024", "score": 82 },
+        { "level": 2, "text": "Platform-Specific Strategies", "score": 75 },
+        { "level": 2, "text": "Content Creation Best Practices", "score": 79 },
+        { "level": 3, "text": "Measuring Social Media Success", "score": 73 }
+      ],
+      "schema": {
+        "hasJsonLD": false,
+        "isValid": false,
+        "types": []
+      }
+    },
+    "urlSuggestions": [
+      "marketing/social-media-strategy",
+      "marketing/social-media/content-planning",
+      "marketing/social-media/influencer-campaigns",
+      "digital-marketing/paid-social-advertising",
+      "analytics/social-media-metrics",
+      "social/platform-strategies"
+    ]
+  }
+]
