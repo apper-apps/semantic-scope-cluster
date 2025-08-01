@@ -33,7 +33,7 @@ const AnalysisResults = ({ analysis, onRetry }) => {
     },
     {
       title: "Primary Entities",
-      value: analysis.entities.length,
+value: Object.values(analysis.entities || {}).reduce((total, category) => total + (Array.isArray(category) ? category.length : 0), 0) || (Array.isArray(analysis.entities) ? analysis.entities.length : 0),
       icon: "Tag", 
       color: "secondary",
       description: "Named entities found"
@@ -197,16 +197,65 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                   </div>
                   
                   <div>
-                    <h4 className="font-medium text-slate-300 mb-3">Key Entities</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.entities.slice(0, 10).map((entity, index) => (
-                        <span 
-                          key={index}
-                          className="px-3 py-1 bg-secondary/20 text-secondary border border-secondary/30 rounded-full text-sm"
-                        >
-                          {entity}
-                        </span>
-                      ))}
+<h4 className="font-medium text-slate-300 mb-4">Named Entities</h4>
+                    <div className="space-y-4">
+                      {analysis.entities && typeof analysis.entities === 'object' && !Array.isArray(analysis.entities) ? (
+                        // New categorized entity format
+                        Object.entries(analysis.entities).map(([category, entities]) => {
+                          if (!entities || entities.length === 0) return null;
+                          
+                          const categoryColors = {
+                            people: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+                            organizations: 'bg-green-500/20 text-green-300 border-green-500/30',
+                            locations: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+                            technologies: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+                            products: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+                            events: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+                            misc: 'bg-secondary/20 text-secondary border-secondary/30'
+                          };
+
+                          return (
+                            <div key={category} className="space-y-2">
+                              <h5 className="text-sm font-medium text-slate-400 capitalize">
+                                {category} ({entities.length})
+                              </h5>
+                              <div className="flex flex-wrap gap-2">
+                                {entities.slice(0, 8).map((entity, index) => (
+                                  <span 
+                                    key={index}
+                                    className={`px-3 py-1 rounded-full text-sm border ${categoryColors[category] || categoryColors.misc}`}
+                                    title={`Confidence: ${Math.round((entity.confidence || 0.5) * 100)}%`}
+                                  >
+                                    {typeof entity === 'string' ? entity : entity.name}
+                                    {entity.confidence && (
+                                      <span className="ml-1 text-xs opacity-75">
+                                        {Math.round(entity.confidence * 100)}%
+                                      </span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        // Legacy array format fallback
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium text-slate-400">
+                            Entities ({(analysis.entities || []).length})
+                          </h5>
+                          <div className="flex flex-wrap gap-2">
+                            {(analysis.entities || []).slice(0, 10).map((entity, index) => (
+                              <span 
+                                key={index}
+                                className="px-3 py-1 bg-secondary/20 text-secondary border border-secondary/30 rounded-full text-sm"
+                              >
+                                {entity}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -14,6 +14,127 @@ const extractKeywords = (text) => {
     'his', 'her', 'its', 'our', 'their', 'from', 'up', 'about', 'into', 'over', 'after'
   ]);
 
+  // Enhanced entity extraction with NLP patterns
+  const extractEntities = (text) => {
+    const entities = {
+      people: new Set(),
+      organizations: new Set(),
+      locations: new Set(),
+      products: new Set(),
+      technologies: new Set(),
+      events: new Set(),
+      misc: new Set()
+    };
+
+    // Common organization suffixes and prefixes
+    const orgPatterns = [
+      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:Inc|LLC|Corp|Corporation|Company|Co|Ltd|Limited|Foundation|Institute|University|College|School)\b/g,
+      /\b(?:Apple|Google|Microsoft|Amazon|Facebook|Meta|Tesla|Netflix|Spotify|Adobe|Intel|AMD|NVIDIA|Samsung|Sony|IBM|Oracle|Salesforce|Zoom|Slack|Twitter|LinkedIn|YouTube|Instagram|TikTok|WhatsApp|Uber|Airbnb|PayPal|Shopify|WordPress|GitHub|Stack Overflow|Reddit|Discord|Twitch)\b/gi
+    ];
+
+    // Person name patterns (Title + Name or First Last)
+    const personPatterns = [
+      /\b(?:Mr|Mrs|Ms|Dr|Prof|Professor|CEO|CTO|CFO|President|Director|Manager|VP|Vice President|Chief|Senior|Lead|Principal)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/g,
+      /\b([A-Z][a-z]+\s+(?:van\s+|de\s+|del\s+|la\s+|le\s+)?[A-Z][a-z]+)(?:\s+(?:said|told|mentioned|explained|stated|announced|reported))/g
+    ];
+
+    // Location patterns
+    const locationPatterns = [
+      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*),\s*([A-Z]{2}|[A-Z][a-zA-Z]+)\b/g, // City, State/Country
+      /\b(?:in|from|at|near|around)\s+([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\b/g,
+      /\b(New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|San Francisco|Columbus|Charlotte|Fort Worth|Detroit|El Paso|Memphis|Seattle|Denver|Washington|Boston|Nashville|Baltimore|Oklahoma City|Louisville|Portland|Las Vegas|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|London|Paris|Berlin|Tokyo|Sydney|Toronto|Vancouver|Montreal|Mumbai|Delhi|Shanghai|Beijing|Moscow|Dubai|Singapore|Hong Kong)\b/gi
+    ];
+
+    // Technology and product patterns
+    const techPatterns = [
+      /\b(iPhone|iPad|MacBook|Android|Windows|Linux|iOS|JavaScript|Python|Java|React|Angular|Vue|Node\.js|Docker|Kubernetes|AWS|Azure|GCP|MongoDB|PostgreSQL|MySQL|Redis|GraphQL|REST API|Machine Learning|AI|Artificial Intelligence|Cloud Computing|Blockchain|Cryptocurrency|Bitcoin|Ethereum)\b/gi,
+      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:API|SDK|Framework|Library|Platform|Service|Tool|Software|App|Application|System|Database|Server|Service)\b/g
+    ];
+
+    // Extract organizations
+    orgPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        entities.organizations.add(match[1] || match[0]);
+      }
+    });
+
+    // Extract people
+    personPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const name = match[1];
+        if (name && name.length > 3) {
+          entities.people.add(name);
+        }
+      }
+    });
+
+    // Extract locations
+    locationPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const location = match[1] || match[0];
+        if (location && location.length > 2) {
+          entities.locations.add(location);
+        }
+      }
+    });
+
+    // Extract technologies and products
+    techPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const tech = match[1] || match[0];
+        if (tech && tech.length > 2) {
+          entities.technologies.add(tech);
+        }
+      }
+    });
+
+    // Extract general proper nouns (fallback)
+    const properNounPattern = /\b[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+)*\b/g;
+    let match;
+    while ((match = properNounPattern.exec(text)) !== null) {
+      const entity = match[0];
+      if (entity.length > 3 && 
+          !Array.from(entities.people).includes(entity) &&
+          !Array.from(entities.organizations).includes(entity) &&
+          !Array.from(entities.locations).includes(entity) &&
+          !Array.from(entities.technologies).includes(entity)) {
+        entities.misc.add(entity);
+      }
+    }
+
+    // Convert sets to arrays and add confidence scores
+    const result = {};
+    Object.keys(entities).forEach(category => {
+      result[category] = Array.from(entities[category])
+        .filter(entity => entity.length > 2)
+        .slice(0, 10) // Limit per category
+        .map(entity => ({
+          name: entity,
+          confidence: calculateConfidence(entity, text, category)
+        }))
+        .sort((a, b) => b.confidence - a.confidence);
+    });
+
+    return result;
+  };
+
+  const calculateConfidence = (entity, text, category) => {
+    const occurrences = (text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+    let baseScore = Math.min(occurrences * 0.2, 1.0);
+    
+    // Category-specific confidence adjustments
+    if (category === 'organizations' && entity.match(/\b(?:Inc|LLC|Corp|Company)\b/)) baseScore += 0.3;
+    if (category === 'people' && entity.split(' ').length === 2) baseScore += 0.2;
+    if (category === 'locations' && entity.match(/^[A-Z][a-z]+,\s*[A-Z]{2}$/)) baseScore += 0.3;
+    if (category === 'technologies' && entity.match(/\b(?:API|SDK|JS|AI)\b/)) baseScore += 0.2;
+    
+    return Math.min(baseScore, 1.0);
+  };
+
   const words = text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
@@ -192,20 +313,8 @@ const performSemanticAnalysis = async (url) => {
     // Perform topic analysis
     const topics = analyzeTopics(content);
     
-    // Extract entities (capitalized words that appear multiple times)
-    const entityMatches = text.match(/\b[A-Z][a-zA-Z]+\b/g) || [];
-    const entityFreq = {};
-    entityMatches.forEach(entity => {
-      if (entity.length > 2) {
-        entityFreq[entity] = (entityFreq[entity] || 0) + 1;
-      }
-    });
-    
-    const entities = Object.entries(entityFreq)
-      .filter(([, freq]) => freq > 1)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 15)
-      .map(([entity]) => entity);
+// Enhanced entity extraction with categorization
+    const entities = extractEntities(text);
 
     // Perform SEO analysis
     const seoMetrics = analyzeSEO(content);
@@ -251,8 +360,105 @@ export const analysisService = {
     return { ...analysis };
   },
 
-async analyzeUrl(url) {
+async analyzeUrl(input, inputMode = 'url') {
     await delay(1500); // Reduced delay for real analysis
+
+    if (inputMode === 'url') {
+      try {
+        // Validate URL
+        const urlObj = new URL(input);
+        
+        // Ensure URL has protocol
+        if (!urlObj.protocol.startsWith('http')) {
+          throw new Error("URL must use HTTP or HTTPS protocol");
+        }
+      } catch {
+        throw new Error("Invalid URL format. Please include http:// or https://");
+      }
+
+      try {
+        // Perform real semantic analysis on URL
+        const analysisResults = await performSemanticAnalysis(input);
+        
+        // Create new analysis record
+        const newAnalysis = {
+          id: Math.max(...mockAnalyses.map(a => a.id), 0) + 1,
+          url: input,
+          timestamp: new Date().toISOString(),
+          ...analysisResults
+        };
+
+        // Add to mock data
+        mockAnalyses.unshift(newAnalysis);
+        return { ...newAnalysis };
+      } catch (error) {
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error("Unable to access the website. It may be blocking automated requests or be temporarily unavailable.");
+        } else if (error.message.includes('CORS')) {
+          throw new Error("The website is blocking cross-origin requests. This is a browser security limitation.");
+        } else {
+          throw new Error(error.message || "Failed to analyze website content. Please try again.");
+        }
+      }
+    } else {
+      // Analyze direct text content
+      try {
+        const content = {
+          title: "Direct Content Analysis",
+          metaDescription: "Analysis of provided text content",
+          headings: [],
+          text: input
+        };
+
+        // Perform topic analysis on text
+        const topics = analyzeTopics(content);
+        
+        // Enhanced entity extraction with categorization
+        const entities = extractEntities(input);
+        
+        // Basic SEO analysis for text content
+        const seoMetrics = {
+          score: Math.min(Math.max(input.length / 50, 0.3), 1.0), // Based on content length
+          issues: input.length < 100 ? ["Content too short for comprehensive analysis"] : [],
+          recommendations: [
+            "Consider structuring content with clear headings",
+            "Ensure key entities are properly emphasized",
+            "Add more descriptive context around important terms"
+          ]
+        };
+
+        // Generate topic-based suggestions
+        const urlSuggestions = topics
+          .slice(0, 5)
+          .map(topic => topic.name.toLowerCase().replace(/\s+/g, '-'))
+          .concat(['content-analysis', 'text-insights', 'entity-extraction']);
+
+        const newAnalysis = {
+          id: Math.max(...mockAnalyses.map(a => a.id), 0) + 1,
+          url: "Direct Content Analysis",
+          timestamp: new Date().toISOString(),
+          topics,
+          entities,
+          seoMetrics,
+          urlSuggestions,
+          contentType: 'text'
+        };
+
+        mockAnalyses.unshift(newAnalysis);
+        return { ...newAnalysis };
+      } catch (error) {
+        throw new Error("Failed to analyze text content. Please try again.");
+      }
+    }
+  },
+
+  // Legacy method for URL-only analysis (for backward compatibility)
+  async analyzeUrlLegacy(url) {
+    return this.analyzeUrl(url, 'url');
+  },
+
+  async analyzeUrlOriginal(url) {
+    await delay(1500);
 
     try {
       // Validate URL
@@ -268,7 +474,7 @@ async analyzeUrl(url) {
 
     try {
       // Perform real semantic analysis
-      const analysisResults = await performSemanticAnalysis(url);
+const analysisResults = await performSemanticAnalysis(url);
       
       // Create new analysis record
       const newAnalysis = {
