@@ -4,6 +4,128 @@ import mockAnalyses from "@/services/mockData/analyses.json";
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Mock NLP analysis function
+// Helper function to calculate entity confidence scores
+const calculateConfidence = (entity, text, category) => {
+  const occurrences = (text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+  let baseScore = Math.min(occurrences * 0.2, 1.0);
+  
+  // Category-specific confidence adjustments
+  if (category === 'organizations' && entity.match(/\b(?:Inc|LLC|Corp|Company)\b/)) baseScore += 0.3;
+  if (category === 'people' && entity.split(' ').length === 2) baseScore += 0.2;
+  if (category === 'locations' && entity.match(/^[A-Z][a-z]+,\s*[A-Z]{2}$/)) baseScore += 0.3;
+  if (category === 'technologies' && entity.match(/\b(?:API|SDK|JS|AI)\b/)) baseScore += 0.2;
+  
+  return Math.min(baseScore, 1.0);
+};
+
+// Enhanced entity extraction with NLP patterns
+const extractEntities = (text) => {
+  const entities = {
+    people: new Set(),
+    organizations: new Set(),
+    locations: new Set(),
+    products: new Set(),
+    technologies: new Set(),
+    events: new Set(),
+    misc: new Set()
+  };
+
+  // Common organization suffixes and prefixes
+  const orgPatterns = [
+    /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:Inc|LLC|Corp|Corporation|Company|Co|Ltd|Limited|Foundation|Institute|University|College|School)\b/g,
+    /\b(?:Apple|Google|Microsoft|Amazon|Facebook|Meta|Tesla|Netflix|Spotify|Adobe|Intel|AMD|NVIDIA|Samsung|Sony|IBM|Oracle|Salesforce|Zoom|Slack|Twitter|LinkedIn|YouTube|Instagram|TikTok|WhatsApp|Uber|Airbnb|PayPal|Shopify|WordPress|GitHub|Stack Overflow|Reddit|Discord|Twitch)\b/gi
+  ];
+
+  // Person name patterns (Title + Name or First Last)
+  const personPatterns = [
+    /\b(?:Mr|Mrs|Ms|Dr|Prof|Professor|CEO|CTO|CFO|President|Director|Manager|VP|Vice President|Chief|Senior|Lead|Principal)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/g,
+    /\b([A-Z][a-z]+\s+(?:van\s+|de\s+|del\s+|la\s+|le\s+)?[A-Z][a-z]+)(?:\s+(?:said|told|mentioned|explained|stated|announced|reported))/g
+  ];
+
+  // Location patterns
+  const locationPatterns = [
+    /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*),\s*([A-Z]{2}|[A-Z][a-zA-Z]+)\b/g, // City, State/Country
+    /\b(?:in|from|at|near|around)\s+([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\b/g,
+    /\b(New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|San Francisco|Columbus|Charlotte|Fort Worth|Detroit|El Paso|Memphis|Seattle|Denver|Washington|Boston|Nashville|Baltimore|Oklahoma City|Louisville|Portland|Las Vegas|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|London|Paris|Berlin|Tokyo|Sydney|Toronto|Vancouver|Montreal|Mumbai|Delhi|Shanghai|Beijing|Moscow|Dubai|Singapore|Hong Kong)\b/gi
+  ];
+
+  // Technology and product patterns
+  const techPatterns = [
+    /\b(iPhone|iPad|MacBook|Android|Windows|Linux|iOS|JavaScript|Python|Java|React|Angular|Vue|Node\.js|Docker|Kubernetes|AWS|Azure|GCP|MongoDB|PostgreSQL|MySQL|Redis|GraphQL|REST API|Machine Learning|AI|Artificial Intelligence|Cloud Computing|Blockchain|Cryptocurrency|Bitcoin|Ethereum)\b/gi,
+    /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:API|SDK|Framework|Library|Platform|Service|Tool|Software|App|Application|System|Database|Server|Service)\b/g
+  ];
+
+  // Extract organizations
+  orgPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      entities.organizations.add(match[1] || match[0]);
+    }
+  });
+
+  // Extract people
+  personPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const name = match[1];
+      if (name && name.length > 3) {
+        entities.people.add(name);
+      }
+    }
+  });
+
+  // Extract locations
+  locationPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const location = match[1] || match[0];
+      if (location && location.length > 2) {
+        entities.locations.add(location);
+      }
+    }
+  });
+
+  // Extract technologies and products
+  techPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const tech = match[1] || match[0];
+      if (tech && tech.length > 2) {
+        entities.technologies.add(tech);
+      }
+    }
+  });
+
+  // Extract general proper nouns (fallback)
+  const properNounPattern = /\b[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+)*\b/g;
+  let match;
+  while ((match = properNounPattern.exec(text)) !== null) {
+    const entity = match[0];
+    if (entity.length > 3 && 
+        !Array.from(entities.people).includes(entity) &&
+        !Array.from(entities.organizations).includes(entity) &&
+        !Array.from(entities.locations).includes(entity) &&
+        !Array.from(entities.technologies).includes(entity)) {
+      entities.misc.add(entity);
+    }
+  }
+
+  // Convert sets to arrays and add confidence scores
+  const result = {};
+  Object.keys(entities).forEach(category => {
+    result[category] = Array.from(entities[category])
+      .filter(entity => entity.length > 2)
+      .slice(0, 10) // Limit per category
+      .map(entity => ({
+        name: entity,
+        confidence: calculateConfidence(entity, text, category)
+      }))
+      .sort((a, b) => b.confidence - a.confidence);
+  });
+
+  return result;
+};
+
 const extractKeywords = (text) => {
   // Remove common stop words and extract meaningful keywords
   const stopWords = new Set([
@@ -13,127 +135,6 @@ const extractKeywords = (text) => {
     'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your',
     'his', 'her', 'its', 'our', 'their', 'from', 'up', 'about', 'into', 'over', 'after'
   ]);
-
-  // Enhanced entity extraction with NLP patterns
-  const extractEntities = (text) => {
-    const entities = {
-      people: new Set(),
-      organizations: new Set(),
-      locations: new Set(),
-      products: new Set(),
-      technologies: new Set(),
-      events: new Set(),
-      misc: new Set()
-    };
-
-    // Common organization suffixes and prefixes
-    const orgPatterns = [
-      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:Inc|LLC|Corp|Corporation|Company|Co|Ltd|Limited|Foundation|Institute|University|College|School)\b/g,
-      /\b(?:Apple|Google|Microsoft|Amazon|Facebook|Meta|Tesla|Netflix|Spotify|Adobe|Intel|AMD|NVIDIA|Samsung|Sony|IBM|Oracle|Salesforce|Zoom|Slack|Twitter|LinkedIn|YouTube|Instagram|TikTok|WhatsApp|Uber|Airbnb|PayPal|Shopify|WordPress|GitHub|Stack Overflow|Reddit|Discord|Twitch)\b/gi
-    ];
-
-    // Person name patterns (Title + Name or First Last)
-    const personPatterns = [
-      /\b(?:Mr|Mrs|Ms|Dr|Prof|Professor|CEO|CTO|CFO|President|Director|Manager|VP|Vice President|Chief|Senior|Lead|Principal)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/g,
-      /\b([A-Z][a-z]+\s+(?:van\s+|de\s+|del\s+|la\s+|le\s+)?[A-Z][a-z]+)(?:\s+(?:said|told|mentioned|explained|stated|announced|reported))/g
-    ];
-
-    // Location patterns
-    const locationPatterns = [
-      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*),\s*([A-Z]{2}|[A-Z][a-zA-Z]+)\b/g, // City, State/Country
-      /\b(?:in|from|at|near|around)\s+([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\b/g,
-      /\b(New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|San Francisco|Columbus|Charlotte|Fort Worth|Detroit|El Paso|Memphis|Seattle|Denver|Washington|Boston|Nashville|Baltimore|Oklahoma City|Louisville|Portland|Las Vegas|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|London|Paris|Berlin|Tokyo|Sydney|Toronto|Vancouver|Montreal|Mumbai|Delhi|Shanghai|Beijing|Moscow|Dubai|Singapore|Hong Kong)\b/gi
-    ];
-
-    // Technology and product patterns
-    const techPatterns = [
-      /\b(iPhone|iPad|MacBook|Android|Windows|Linux|iOS|JavaScript|Python|Java|React|Angular|Vue|Node\.js|Docker|Kubernetes|AWS|Azure|GCP|MongoDB|PostgreSQL|MySQL|Redis|GraphQL|REST API|Machine Learning|AI|Artificial Intelligence|Cloud Computing|Blockchain|Cryptocurrency|Bitcoin|Ethereum)\b/gi,
-      /\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\s+(?:API|SDK|Framework|Library|Platform|Service|Tool|Software|App|Application|System|Database|Server|Service)\b/g
-    ];
-
-    // Extract organizations
-    orgPatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        entities.organizations.add(match[1] || match[0]);
-      }
-    });
-
-    // Extract people
-    personPatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const name = match[1];
-        if (name && name.length > 3) {
-          entities.people.add(name);
-        }
-      }
-    });
-
-    // Extract locations
-    locationPatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const location = match[1] || match[0];
-        if (location && location.length > 2) {
-          entities.locations.add(location);
-        }
-      }
-    });
-
-    // Extract technologies and products
-    techPatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const tech = match[1] || match[0];
-        if (tech && tech.length > 2) {
-          entities.technologies.add(tech);
-        }
-      }
-    });
-
-    // Extract general proper nouns (fallback)
-    const properNounPattern = /\b[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+)*\b/g;
-    let match;
-    while ((match = properNounPattern.exec(text)) !== null) {
-      const entity = match[0];
-      if (entity.length > 3 && 
-          !Array.from(entities.people).includes(entity) &&
-          !Array.from(entities.organizations).includes(entity) &&
-          !Array.from(entities.locations).includes(entity) &&
-          !Array.from(entities.technologies).includes(entity)) {
-        entities.misc.add(entity);
-      }
-    }
-
-    // Convert sets to arrays and add confidence scores
-    const result = {};
-    Object.keys(entities).forEach(category => {
-      result[category] = Array.from(entities[category])
-        .filter(entity => entity.length > 2)
-        .slice(0, 10) // Limit per category
-        .map(entity => ({
-          name: entity,
-          confidence: calculateConfidence(entity, text, category)
-        }))
-        .sort((a, b) => b.confidence - a.confidence);
-    });
-
-    return result;
-  };
-
-  const calculateConfidence = (entity, text, category) => {
-    const occurrences = (text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
-    let baseScore = Math.min(occurrences * 0.2, 1.0);
-    
-    // Category-specific confidence adjustments
-    if (category === 'organizations' && entity.match(/\b(?:Inc|LLC|Corp|Company)\b/)) baseScore += 0.3;
-    if (category === 'people' && entity.split(' ').length === 2) baseScore += 0.2;
-    if (category === 'locations' && entity.match(/^[A-Z][a-z]+,\s*[A-Z]{2}$/)) baseScore += 0.3;
-    if (category === 'technologies' && entity.match(/\b(?:API|SDK|JS|AI)\b/)) baseScore += 0.2;
-    
-    return Math.min(baseScore, 1.0);
-  };
 
   const words = text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
