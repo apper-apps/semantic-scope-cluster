@@ -34,25 +34,29 @@ const TopicHierarchy = ({ topics }) => {
     }
   };
 
-  const buildHierarchy = (topics) => {
+const buildHierarchy = (topics) => {
+    if (!Array.isArray(topics) || topics.length === 0) return [];
+    
     const hierarchy = [];
-    const mainTopics = topics.filter(topic => (topic.crossPageRelevance || topic.relevance) >= 70);
+    const mainTopics = topics.filter(topic => (topic.crossPageRelevance || topic.relevance || 0) >= 70);
     
     mainTopics.forEach(mainTopic => {
       const subtopics = topics.filter(topic => 
-        (topic.crossPageRelevance || topic.relevance) < 70 && 
+        (topic.crossPageRelevance || topic.relevance || 0) < 70 && 
+        topic.name && mainTopic.name &&
         topic.name.toLowerCase().includes(mainTopic.name.toLowerCase().split(' ')[0])
       );
       
       hierarchy.push({
         ...mainTopic,
-        subtopics: subtopics,
+        subtopics: subtopics || [],
         pageCount: mainTopic.pages ? mainTopic.pages.length : 1,
-        totalMentions: mainTopic.totalMentions || mainTopic.frequency,
-        avgFrequencyPerPage: mainTopic.avgFrequencyPerPage || mainTopic.frequency,
+        totalMentions: mainTopic.totalMentions || mainTopic.frequency || 0,
+        avgFrequencyPerPage: mainTopic.avgFrequencyPerPage || mainTopic.frequency || 0,
         contextExamples: mainTopic.contextExamples || [],
         entities: mainTopic.entities || { PERSON: [], ORGANIZATION: [], PRODUCT: [], LOCATION: [], OTHER: [] },
-        entityFrequency: mainTopic.entityFrequency || {}
+        entityFrequency: mainTopic.entityFrequency || {},
+        relatedEntities: mainTopic.relatedEntities || []
       });
     });
     
@@ -62,12 +66,14 @@ const TopicHierarchy = ({ topics }) => {
   const hierarchy = buildHierarchy(topics);
   const hasMultiplePages = topics.some(topic => topic.pages && topic.pages.length > 1);
   
-  // Calculate total entities across all topics
-  const totalEntityStats = topics.reduce((stats, topic) => {
-    if (topic.entities) {
+// Calculate total entities across all topics
+  const totalEntityStats = (topics || []).reduce((stats, topic) => {
+    if (topic.entities && typeof topic.entities === 'object') {
       Object.entries(topic.entities).forEach(([category, entities]) => {
-        if (!stats[category]) stats[category] = new Set();
-        entities.forEach(entity => stats[category].add(entity));
+        if (Array.isArray(entities)) {
+          if (!stats[category]) stats[category] = new Set();
+          entities.forEach(entity => stats[category].add(entity));
+        }
       });
     }
     return stats;

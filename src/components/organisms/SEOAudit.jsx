@@ -16,7 +16,7 @@ const SEOAudit = ({ seoMetrics }) => {
     return "XCircle";
   };
 
-const isMultiPage = seoMetrics.pageCount > 1;
+const isMultiPage = (seoMetrics.pageCount || 0) > 1 || (seoMetrics.pages && seoMetrics.pages.length > 1);
   const samplePage = seoMetrics.pages?.[0]?.seoMetrics || seoMetrics;
 
   const auditSections = [

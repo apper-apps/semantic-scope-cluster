@@ -49,8 +49,8 @@ const URLGenerator = ({ suggestions }) => {
       {/* Header */}
 <div>
         <h3 className="text-lg font-semibold text-white mb-2">URL Structure Generator</h3>
-        <p className="text-slate-400">
-          SEO-optimized URL suggestions based on {suggestions.length > 10 ? 'multi-page crawling and ' : ''}semantic analysis
+<p className="text-slate-400">
+          SEO-optimized URL suggestions based on {(suggestions || []).length > 10 ? 'multi-page crawling and ' : ''}semantic analysis
         </p>
       </div>
 

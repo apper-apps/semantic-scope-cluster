@@ -130,7 +130,6 @@
       "ai/content-tools/nlp-applications",
       "marketing/ai-automation",
       "seo/ai-optimization-tools",
-      "content/ai-writing-assistants",
 "content/ai-writing-assistants",
       "digital-marketing/ai-strategies"
     ],
@@ -167,9 +166,9 @@
             "contextExamples": [
               "Email marketing automation sequences help nurture leads effectively"
             ]
-          }
+}
         ],
-"uniqueEntities": ["OpenAI", "ChatGPT", "GPT-4", "TensorFlow", "Neural Networks", "Cloud Computing"],
+        "uniqueEntities": ["OpenAI", "ChatGPT", "GPT-4", "TensorFlow", "Neural Networks", "Cloud Computing"],
         "categorizedEntities": {
           "ORGANIZATION": ["OpenAI", "Google AI", "Microsoft Azure"],
           "PRODUCT": ["ChatGPT", "GPT-4", "TensorFlow", "Neural Networks"],
@@ -222,9 +221,10 @@
           "Effective copywriting requires understanding your audience and crafting compelling messages",
           "Keyword research tools like SEMrush and Ahrefs provide competitive insights",
           "Content optimization involves meta tags, schema markup, and internal linking"
-        ]
+]
       }
-    ]},
+    ]
+  },
   {
     "id": 2,
     "url": "https://techblog.example.com/web-development-trends",
@@ -314,14 +314,15 @@
         "types": ["Article", "TechArticle"]
       }
     },
-    "urlSuggestions": [
+"urlSuggestions": [
       "web-development/trends-2024",
       "web-development/frontend-frameworks",
       "web-development/performance-optimization",
       "development/progressive-web-apps",
       "tech/web-vitals-guide",
       "programming/javascript-frameworks"
-    ]
+    ],
+    "semanticClusters": []
   },
   {
     "id": 3,
@@ -412,13 +413,14 @@
         "types": []
       }
     },
-    "urlSuggestions": [
+"urlSuggestions": [
       "marketing/social-media-strategy",
       "marketing/social-media/content-planning",
       "marketing/social-media/influencer-campaigns",
       "digital-marketing/paid-social-advertising",
       "analytics/social-media-metrics",
       "social/platform-strategies"
-    ]
+    ],
+    "semanticClusters": []
   }
 ]

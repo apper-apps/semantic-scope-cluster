@@ -1,4 +1,4 @@
-import mockAnalyses from '@/services/mockData/analyses.json'
+import mockAnalyses from "@/services/mockData/analyses.json";
 // Service file - no UI imports needed
 // Optimized minimal delay for better performance
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -291,31 +291,21 @@ const analyzeTopics = (content, url, keywords, domainNiche = null) => {
     return entities;
   };
 
-  // Enhanced subtopic detection using semantic relationships
+// Enhanced subtopic detection using semantic relationships
   const detectSubtopics = (mainTopic, keywords, entities) => {
     const subtopics = [];
     const mainTopicWords = mainTopic.toLowerCase().split(' ');
     
-    // Find semantically related keywords
-    const relatedKeywords = keywords.filter(k => {
-      const keywordWords = k.word.toLowerCase().split(' ');
-      // Check for semantic relationships
-      const isRelated = mainTopicWords.some(mainWord => 
-        keywordWords.some(keyWord => 
-          keyWord.includes(mainWord) || 
-          mainWord.includes(keyWord) ||
-          // Domain-specific semantic relationships
-          (mainWord === 'ai' && ['machine', 'learning', 'neural', 'deep', 'algorithm'].includes(keyWord)) ||
-          (mainWord === 'marketing' && ['content', 'social', 'digital', 'advertising', 'campaign'].includes(keyWord)) ||
-          (mainWord === 'development' && ['programming', 'coding', 'framework', 'library', 'api'].includes(keyWord)) ||
-          (mainWord === 'seo' && ['keyword', 'ranking', 'optimization', 'search', 'google'].includes(keyWord))
-        )
-      );
-      return isRelated && k.frequency >= 5; // Minimum frequency threshold
-    });
-
-    // Group related keywords into subtopics
+    // Group related keywords by semantic similarity
     const topicGroups = {};
+    const relatedKeywords = keywords.filter(keyword => {
+      const keywordLower = keyword.word.toLowerCase();
+      return mainTopicWords.some(word => 
+        keywordLower.includes(word) || word.includes(keywordLower) || 
+        Math.abs(keywordLower.length - word.length) <= 3
+      );
+    });
+    
     relatedKeywords.forEach(keyword => {
       const keywordLower = keyword.word.toLowerCase();
       let groupKey = null;
@@ -358,7 +348,7 @@ const analyzeTopics = (content, url, keywords, domainNiche = null) => {
       }
     });
 
-return subtopics.slice(0, 5); // Limit to top 5 subtopics
+    return subtopics.slice(0, 5); // Limit to top 5 subtopics
   };
   const { title, headings, text } = content;
   const allText = `${title} ${headings.join(' ')} ${text}`.toLowerCase();
@@ -413,8 +403,8 @@ return subtopics.slice(0, 5); // Limit to top 5 subtopics
       // Extract context examples
       const contextExamples = extractTopicContext(topicName, fullText, 2);
       
-      const subtopics = matchingKeywords.slice(0, 3).map(({ word, frequency }) => ({
-name: word.charAt(0).toUpperCase() + word.slice(1),
+const subtopics = matchingKeywords.slice(0, 3).map(({ word, frequency }) => ({
+        name: word.charAt(0).toUpperCase() + word.slice(1),
         frequency,
         relevance: Math.min(90, baseRelevance - 10 + Math.random() * 20),
         relatedEntities: matchingKeywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1)),
@@ -454,8 +444,8 @@ name: word.charAt(0).toUpperCase() + word.slice(1),
   remainingKeywords.forEach(({ word, frequency }) => {
     const contextExamples = extractTopicContext(word, fullText, 1);
     
-    topics.push({
-name: word.charAt(0).toUpperCase() + word.slice(1),
+topics.push({
+      name: word.charAt(0).toUpperCase() + word.slice(1),
       frequency,
       relevance: Math.min(85, 40 + frequency * 2),
       subtopics: [],
@@ -551,8 +541,8 @@ const generateSemanticClusters = (allTopics, domainNiche) => {
     }
   });
 
-  // Calculate cluster metrics and convert to array
-return Array.from(clusters.values()).map(cluster => {
+// Calculate cluster metrics and convert to array
+  return Array.from(clusters.values()).map(cluster => {
     // Aggregate categorized entities from all topics in cluster
     const categorizedEntities = { PERSON: new Set(), ORGANIZATION: new Set(), PRODUCT: new Set(), LOCATION: new Set(), OTHER: new Set() };
     
@@ -1094,7 +1084,7 @@ const performSemanticAnalysis = async (url, onProgress) => {
     const domainNiche = detectDomainNiche(allContent);
 // Analyze each page with domain context
     pages.forEach(page => {
-page.topics = analyzeTopics(page.content, page.url, [], domainNiche);
+      page.topics = analyzeTopics(page.content, page.url, [], domainNiche);
       
       // Extract and aggregate entities across pages
       page.entities = page.topics.reduce((allEntities, topic) => {
@@ -1121,8 +1111,8 @@ page.topics = analyzeTopics(page.content, page.url, [], domainNiche);
     // Aggregate topic data across pages
     allTopics.forEach(topic => {
       const key = topic.name.toLowerCase();
-      if (!topicFrequencyMap.has(key)) {
-topicFrequencyMap.set(key, {
+if (!topicFrequencyMap.has(key)) {
+        topicFrequencyMap.set(key, {
           name: topic.name,
           totalMentions: 0,
           pageCount: 0,
@@ -1138,8 +1128,8 @@ topicFrequencyMap.set(key, {
       aggregated.totalMentions += topic.frequency || 0;
       aggregated.pageCount += 1;
       aggregated.relevanceScores.push(topic.relevance || 0);
-      if (topic.contextExamples) aggregated.contextExamples.push(...topic.contextExamples);
-if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
+if (topic.contextExamples) aggregated.contextExamples.push(...topic.contextExamples);
+      if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
       
       // Aggregate categorized entities
       if (topic.entities) {
@@ -1158,8 +1148,8 @@ if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.re
       }
     });
 
-    // Convert aggregated data to final topic list
-const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
+// Convert aggregated data to final topic list
+    const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
       ...topic,
       frequency: topic.totalMentions,
       avgFrequencyPerPage: Math.round(topic.totalMentions / topic.pageCount),
@@ -1178,7 +1168,6 @@ const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => (
 
 // Generate semantic clusters
     const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
-
 // Calculate cross-page frequency scores - fix null reference
     consolidatedTopics.forEach(topic => {
       // Ensure topic has required properties
@@ -1193,8 +1182,8 @@ const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => (
         : Math.min(100, (topic.relevance || 0) + (pageCount > 1 ? pageCount * 5 : 0));
     });
 
-    // Merge and categorize entities
-// Optimized entity processing with efficient data structures
+// Merge and categorize entities
+    // Optimized entity processing with efficient data structures
     const entityMap = new Map();
     const pageUrlMap = new Map(); // Cache page lookups
     
@@ -1229,7 +1218,6 @@ const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => (
     const avgSeoScore = Math.round(
       pages.reduce((sum, page) => sum + page.seoMetrics.score, 0) / pages.length
     );
-
 // Generate comprehensive URL suggestions
     const topTopics = consolidatedTopics.slice(0, 10);
     const urlSuggestions = topTopics
@@ -1248,7 +1236,6 @@ const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => (
       const type = page.seoMetrics.pageType;
       pageTypes[type] = (pageTypes[type] || 0) + 1;
     });
-
 return {
       pages,
       topics: consolidatedTopics,
@@ -1354,8 +1341,8 @@ await delay(100); // Optimized delay for better performance
           text: input
         };
 
-        // Perform topic analysis on text
-const topics = analyzeTopics(content, '', []);
+// Perform topic analysis on text
+        const topics = analyzeTopics(content, '', []);
         // Enhanced entity extraction with categorization
         const entities = extractEntities(input);
         
@@ -1416,8 +1403,8 @@ async analyzeUrlOriginal(url) {
     }
 
     try {
-      // Perform real semantic analysis
-const analysisResults = await performSemanticAnalysis(url);
+// Perform real semantic analysis
+      const analysisResults = await performSemanticAnalysis(url);
       
       // Create new analysis record
       const newAnalysis = {

@@ -50,11 +50,10 @@ const AnalysisResults = ({ analysis, onRetry }) => {
     ];
   }, [analysis?.pages?.length, analysis?.topics?.length, analysis?.entities, analysis?.seoMetrics?.score]);
 
-  // Page type breakdown for multi-page analysis
-  const pageTypeBreakdown = useMemo(() => 
-    analysis?.crawlSummary?.pageTypes || analysis?.seoMetrics?.pageTypes || {}, 
-    [analysis?.crawlSummary?.pageTypes, analysis?.seoMetrics?.pageTypes]
-  );
+// Page type breakdown for multi-page analysis
+  const pageTypeBreakdown = useMemo(() => {
+    return analysis?.crawlSummary?.pageTypes || analysis?.seoMetrics?.pageTypes || {};
+  }, [analysis?.crawlSummary?.pageTypes, analysis?.seoMetrics?.pageTypes]);
 
   // Memoized top topics for performance
   const topTopics = useMemo(() => analysis?.topics?.slice(0, 6) || [], [analysis?.topics]);
@@ -381,7 +380,7 @@ const AnalysisResults = ({ analysis, onRetry }) => {
                 )}
               </div>
 
-              {analysis.semanticClusters && analysis.semanticClusters.length > 0 ? (
+{Array.isArray(analysis.semanticClusters) && analysis.semanticClusters.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {analysis.semanticClusters.map((cluster, index) => (
                     <motion.div
@@ -546,12 +545,12 @@ const AnalysisResults = ({ analysis, onRetry }) => {
             </div>
           )}
 
-          {activeTab === "urls" && (
-            <URLGenerator suggestions={analysis.urlSuggestions} />
+{activeTab === "urls" && (
+            <URLGenerator suggestions={analysis.urlSuggestions || []} />
           )}
 
           {activeTab === "seo" && (
-            <SEOAudit seoMetrics={analysis.seoMetrics} />
+            <SEOAudit seoMetrics={analysis.seoMetrics || { score: 0 }} />
           )}
         </div>
       </Card>
