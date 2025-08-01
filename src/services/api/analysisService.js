@@ -824,13 +824,11 @@ const performSemanticAnalysis = async (url, onProgress) => {
       relatedEntities: Array.from(topic.relatedEntities).slice(0, 6)
     })).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance);
 
-    // Generate semantic clusters
+// Generate semantic clusters
     const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
 
-// Use the already created consolidatedTopics instead of duplicating logic
-
     // Calculate cross-page frequency scores
-    Array.from(topicMap.values()).forEach(topic => {
+    consolidatedTopics.forEach(topic => {
       topic.pageCount = topic.pages.length;
       topic.avgFrequencyPerPage = topic.totalMentions / topic.pageCount;
       topic.crossPageRelevance = Math.min(100, topic.relevance + (topic.pageCount > 1 ? topic.pageCount * 5 : 0));
