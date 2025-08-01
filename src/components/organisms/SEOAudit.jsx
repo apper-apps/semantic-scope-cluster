@@ -1,6 +1,7 @@
-import Card from "@/components/atoms/Card";
-import Badge from "@/components/atoms/Badge";
+import React from "react";
 import ApperIcon from "@/components/ApperIcon";
+import Badge from "@/components/atoms/Badge";
+import Card from "@/components/atoms/Card";
 
 const SEOAudit = ({ seoMetrics }) => {
   const getScoreColor = (score) => {
@@ -15,48 +16,165 @@ const SEOAudit = ({ seoMetrics }) => {
     return "XCircle";
   };
 
+const isMultiPage = seoMetrics.pageCount > 1;
+  const samplePage = seoMetrics.pages?.[0]?.seoMetrics || seoMetrics;
+
   const auditSections = [
     {
       title: "Title Tag Analysis",
-      data: seoMetrics.title,
+      data: samplePage.title || seoMetrics.title,
       icon: "FileText",
       checks: [
-        { label: "Length (50-60 chars)", value: seoMetrics.title.length, optimal: [50, 60] },
-        { label: "Contains target keywords", value: seoMetrics.title.hasKeywords ? "Yes" : "No", optimal: true },
-        { label: "Unique and descriptive", value: seoMetrics.title.score >= 70 ? "Yes" : "No", optimal: true }
+        { 
+          label: "Length (50-60 chars)", 
+          value: (samplePage.title || seoMetrics.title)?.length || 0, 
+          optimal: [50, 60] 
+        },
+        { 
+          label: "Contains target keywords", 
+          value: (samplePage.title || seoMetrics.title)?.hasKeywords ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Unique and descriptive", 
+          value: ((samplePage.title || seoMetrics.title)?.score || 0) >= 70 ? "Yes" : "No", 
+          optimal: true 
+        }
       ]
     },
     {
       title: "Meta Description",
-      data: seoMetrics.meta,
+      data: samplePage.meta || seoMetrics.meta,
       icon: "AlignLeft",
       checks: [
-        { label: "Length (150-160 chars)", value: seoMetrics.meta.length, optimal: [150, 160] },
-        { label: "Call-to-action present", value: seoMetrics.meta.hasCTA ? "Yes" : "No", optimal: true },
-        { label: "Semantic relevance", value: `${seoMetrics.meta.score}%`, optimal: 70 }
+        { 
+          label: "Length (150-160 chars)", 
+          value: (samplePage.meta || seoMetrics.meta)?.length || 0, 
+          optimal: [150, 160] 
+        },
+        { 
+          label: "Call-to-action present", 
+          value: (samplePage.meta || seoMetrics.meta)?.hasCTA ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Semantic relevance", 
+          value: `${(samplePage.meta || seoMetrics.meta)?.score || 0}%`, 
+          optimal: 70 
+        }
       ]
     },
     {
       title: "Heading Structure",
-      data: { headings: seoMetrics.headings },
+      data: { headings: samplePage.headings || seoMetrics.headings || [] },
       icon: "Heading",
       checks: [
-        { label: "H1 tag present", value: seoMetrics.headings.filter(h => h.level === 1).length > 0 ? "Yes" : "No", optimal: true },
-        { label: "Proper hierarchy", value: seoMetrics.headings.length > 0 ? "Yes" : "No", optimal: true },
-        { label: "Keyword optimization", value: "Good", optimal: true }
+        { 
+          label: "H1 tag present", 
+          value: (samplePage.headings || seoMetrics.headings || []).filter(h => h.level === 1).length > 0 ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Proper hierarchy", 
+          value: (samplePage.headings || seoMetrics.headings || []).length > 0 ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Multiple H1 tags", 
+          value: (samplePage.headings || seoMetrics.headings || []).filter(h => h.level === 1).length <= 1 ? "No" : "Yes", 
+          optimal: false 
+        }
+      ]
+    },
+    {
+      title: "Images & Media",
+      data: samplePage.images || { total: 0, withAlt: 0, missingAlt: 0, score: 100 },
+      icon: "Image",
+      checks: [
+        { 
+          label: "Images with alt text", 
+          value: `${(samplePage.images || {}).withAlt || 0}/${(samplePage.images || {}).total || 0}`, 
+          optimal: true 
+        },
+        { 
+          label: "Alt text coverage", 
+          value: `${(samplePage.images || {}).score || 100}%`, 
+          optimal: 90 
+        },
+        { 
+          label: "Missing alt text", 
+          value: (samplePage.images || {}).missingAlt || 0, 
+          optimal: 0 
+        }
+      ]
+    },
+    {
+      title: "Internal Linking",
+      data: samplePage.internalLinks || { total: 0, withAnchor: 0, score: 100 },
+      icon: "Link",
+      checks: [
+        { 
+          label: "Internal links found", 
+          value: (samplePage.internalLinks || {}).total || 0, 
+          optimal: 3 
+        },
+        { 
+          label: "Links with anchor text", 
+          value: `${(samplePage.internalLinks || {}).withAnchor || 0}/${(samplePage.internalLinks || {}).total || 0}`, 
+          optimal: true 
+        },
+        { 
+          label: "Anchor text quality", 
+          value: `${(samplePage.internalLinks || {}).score || 100}%`, 
+          optimal: 80 
+        }
       ]
     },
     {
       title: "Schema Markup",
-      data: seoMetrics.schema,
+      data: samplePage.schema || seoMetrics.schema,
       icon: "Code",
       checks: [
-        { label: "JSON-LD present", value: seoMetrics.schema.hasJsonLD ? "Yes" : "No", optimal: true },
-        { label: "Valid markup", value: seoMetrics.schema.isValid ? "Yes" : "No", optimal: true },
-        { label: "Rich snippets ready", value: seoMetrics.schema.types.length > 0 ? "Yes" : "No", optimal: true }
+        { 
+          label: "JSON-LD present", 
+          value: (samplePage.schema || seoMetrics.schema)?.hasJsonLD ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Valid markup", 
+          value: (samplePage.schema || seoMetrics.schema)?.isValid ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Schema types", 
+          value: ((samplePage.schema || seoMetrics.schema)?.types || []).length || 0, 
+          optimal: 1 
+        }
+      ]
+    },
+    {
+      title: "Technical SEO",
+      data: samplePage.technical || { hasCanonical: false, score: 50 },
+      icon: "Settings",
+      checks: [
+        { 
+          label: "Canonical URL present", 
+          value: (samplePage.technical || {}).hasCanonical ? "Yes" : "No", 
+          optimal: true 
+        },
+        { 
+          label: "Technical score", 
+          value: `${(samplePage.technical || {}).score || 50}%`, 
+          optimal: 80 
+        },
+        { 
+          label: "Page crawlability", 
+          value: "Good", 
+          optimal: true 
+        }
       ]
     }
-  ];
+];
 
   const getCheckStatus = (check) => {
     if (Array.isArray(check.optimal)) {
@@ -75,17 +193,29 @@ const SEOAudit = ({ seoMetrics }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+<div>
         <h3 className="text-lg font-semibold text-white mb-2">SEO Audit Report</h3>
-        <p className="text-slate-400">On-page SEO analysis and recommendations</p>
+        <p className="text-slate-400">
+          {isMultiPage 
+            ? `Comprehensive SEO analysis across ${seoMetrics.pageCount} crawled pages`
+            : "On-page SEO analysis and recommendations"
+          }
+        </p>
       </div>
 
       {/* Overall Score */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-xl font-semibold text-white">Overall SEO Score</h4>
-            <p className="text-slate-400">Based on semantic SEO factors</p>
+<div>
+            <h4 className="text-xl font-semibold text-white">
+              {isMultiPage ? "Average SEO Score" : "Overall SEO Score"}
+            </h4>
+            <p className="text-slate-400">
+              {isMultiPage 
+                ? `Based on analysis of ${seoMetrics.pageCount} pages`
+                : "Based on semantic SEO factors"
+              }
+            </p>
           </div>
           <div className="text-right">
             <div className="flex items-center space-x-2">
@@ -171,7 +301,7 @@ const SEOAudit = ({ seoMetrics }) => {
             </div>
           )}
           
-          {seoMetrics.meta.score < 70 && (
+{(seoMetrics.meta?.score || 0) < 70 && (
             <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
               <div className="flex items-start space-x-3">
                 <ApperIcon name="Info" className="w-5 h-5 text-info mt-0.5" />
@@ -185,7 +315,7 @@ const SEOAudit = ({ seoMetrics }) => {
             </div>
           )}
           
-          {!seoMetrics.schema.hasJsonLD && (
+{!seoMetrics.schema?.hasJsonLD && (
             <div className="p-4 bg-secondary/10 border border-secondary/20 rounded-lg">
               <div className="flex items-start space-x-3">
                 <ApperIcon name="Code" className="w-5 h-5 text-secondary mt-0.5" />

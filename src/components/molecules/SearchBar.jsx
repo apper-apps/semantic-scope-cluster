@@ -124,16 +124,28 @@ return (
         variant="primary"
         size="lg"
         loading={loading}
-        icon={inputMode === "url" ? "Search" : "Brain"}
+        icon={inputMode === "url" ? "Globe" : "Brain"}
         className="w-full"
       >
         {loading 
-          ? "Analyzing..." 
+          ? (inputMode === "url" ? "Crawling & Analyzing..." : "Analyzing...") 
           : inputMode === "url" 
-            ? "Analyze Website" 
+            ? "Crawl & Analyze Website" 
             : "Extract Entities"
         }
       </Button>
+      
+      {loading && inputMode === "url" && (
+        <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-slate-600">
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+            <span className="text-sm text-slate-300">Crawling website pages...</span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Discovering and analyzing up to 25 pages for comprehensive SEO audit
+          </p>
+        </div>
+      )}
     </form>
   );
 };

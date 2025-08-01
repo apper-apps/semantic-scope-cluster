@@ -23,36 +23,42 @@ const AnalysisResults = ({ analysis, onRetry }) => {
     { id: "seo", label: "SEO Audit", icon: "Search" }
   ];
 
-  const metrics = [
+const metrics = [
+    {
+      title: "Pages Crawled",
+      value: analysis.pages?.length || 1,
+      icon: "Globe",
+      color: "primary",
+      description: "Total pages analyzed"
+    },
     {
       title: "Total Topics",
       value: analysis.topics.length,
       icon: "Hash",
-      color: "primary",
-      description: "Identified semantic topics"
-    },
-    {
-      title: "Primary Entities",
-value: Object.values(analysis.entities || {}).reduce((total, category) => total + (Array.isArray(category) ? category.length : 0), 0) || (Array.isArray(analysis.entities) ? analysis.entities.length : 0),
-      icon: "Tag", 
       color: "secondary",
-      description: "Named entities found"
+      description: "Semantic topics across all pages"
     },
     {
-      title: "SEO Score",
+      title: "Named Entities",
+      value: Array.isArray(analysis.entities) ? analysis.entities.length : 
+             Object.values(analysis.entities || {}).reduce((total, category) => 
+               total + (Array.isArray(category) ? category.length : 0), 0),
+      icon: "Tag", 
+      color: "accent",
+      description: "Entities found across pages"
+    },
+    {
+      title: "Average SEO Score",
       value: `${analysis.seoMetrics.score}/100`,
       icon: "TrendingUp",
       color: analysis.seoMetrics.score >= 80 ? "success" : analysis.seoMetrics.score >= 60 ? "warning" : "error",
       description: "Overall SEO health"
-    },
-    {
-      title: "URL Suggestions",
-      value: analysis.urlSuggestions.length,
-      icon: "ExternalLink",
-      color: "info",
-      description: "Recommended URL structures"
     }
   ];
+
+  // Page type breakdown for multi-page analysis
+  const pageTypeBreakdown = analysis.crawlSummary?.pageTypes || analysis.seoMetrics?.pageTypes || {};
+  const hasMultiplePages = (analysis.pages?.length || 0) > 1;
 
   return (
     <motion.div
@@ -103,7 +109,7 @@ value: Object.values(analysis.entities || {}).reduce((total, category) => total 
         ))}
       </div>
 
-      {/* SEO Score Ring */}
+{/* SEO Score Ring */}
       <Card className="p-6">
         <div className="flex flex-col lg:flex-row items-center lg:items-start space-y-6 lg:space-y-0 lg:space-x-8">
           <div className="flex-shrink-0">
@@ -111,32 +117,57 @@ value: Object.values(analysis.entities || {}).reduce((total, category) => total 
               progress={analysis.seoMetrics.score}
               size={160}
               color={analysis.seoMetrics.score >= 80 ? "#22C55E" : analysis.seoMetrics.score >= 60 ? "#F59E0B" : "#EF4444"}
-              label="SEO Health"
+              label={hasMultiplePages ? "Average SEO" : "SEO Health"}
             />
           </div>
           
           <div className="flex-1 space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-white mb-2">SEO Performance Summary</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                {hasMultiplePages ? "Multi-Page SEO Analysis" : "SEO Performance Summary"}
+              </h3>
               <p className="text-slate-400">
-                Your website scores {analysis.seoMetrics.score} out of 100 based on semantic SEO factors.
+                {hasMultiplePages 
+                  ? `Analyzed ${analysis.pages.length} pages with an average SEO score of ${analysis.seoMetrics.score}/100`
+                  : `Your website scores ${analysis.seoMetrics.score} out of 100 based on semantic SEO factors`
+                }
               </p>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-slate-800 rounded-lg">
-                <div className="text-2xl font-bold text-success">{analysis.seoMetrics.title.score}%</div>
-                <div className="text-sm text-slate-400">Title Quality</div>
+            {hasMultiplePages ? (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-slate-300">Page Types Discovered</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {Object.entries(pageTypeBreakdown).map(([type, count]) => (
+                    <div key={type} className="text-center p-3 bg-slate-800 rounded-lg">
+                      <div className="text-lg font-bold text-primary">{count}</div>
+                      <div className="text-xs text-slate-400 capitalize">{type} {count === 1 ? 'page' : 'pages'}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="text-center p-3 bg-slate-800 rounded-lg">
-                <div className="text-2xl font-bold text-warning">{analysis.seoMetrics.meta.score}%</div>
-                <div className="text-sm text-slate-400">Meta Tags</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-slate-800 rounded-lg">
+                  <div className="text-2xl font-bold text-success">
+                    {analysis.seoMetrics.title?.score || analysis.pages?.[0]?.seoMetrics?.title?.score || 0}%
+                  </div>
+                  <div className="text-sm text-slate-400">Title Quality</div>
+                </div>
+                <div className="text-center p-3 bg-slate-800 rounded-lg">
+                  <div className="text-2xl font-bold text-warning">
+                    {analysis.seoMetrics.meta?.score || analysis.pages?.[0]?.seoMetrics?.meta?.score || 0}%
+                  </div>
+                  <div className="text-sm text-slate-400">Meta Tags</div>
+                </div>
+                <div className="text-center p-3 bg-slate-800 rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {analysis.seoMetrics.headings?.length || analysis.pages?.[0]?.seoMetrics?.headings?.length || 0}
+                  </div>
+                  <div className="text-sm text-slate-400">Headings</div>
+                </div>
               </div>
-              <div className="text-center p-3 bg-slate-800 rounded-lg">
-                <div className="text-2xl font-bold text-primary">{analysis.seoMetrics.headings.length}</div>
-                <div className="text-sm text-slate-400">Headings</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </Card>
@@ -196,8 +227,10 @@ value: Object.values(analysis.entities || {}).reduce((total, category) => total 
                     </div>
                   </div>
                   
-                  <div>
-<h4 className="font-medium text-slate-300 mb-4">Named Entities</h4>
+<div>
+                    <h4 className="font-medium text-slate-300 mb-4">
+                      Named Entities {hasMultiplePages && <span className="text-xs text-slate-500">(Across all pages)</span>}
+                    </h4>
                     <div className="space-y-4">
                       {analysis.entities && typeof analysis.entities === 'object' && !Array.isArray(analysis.entities) ? (
                         // New categorized entity format
@@ -224,12 +257,12 @@ value: Object.values(analysis.entities || {}).reduce((total, category) => total 
                                   <span 
                                     key={index}
                                     className={`px-3 py-1 rounded-full text-sm border ${categoryColors[category] || categoryColors.misc}`}
-                                    title={`Confidence: ${Math.round((entity.confidence || 0.5) * 100)}%`}
+                                    title={`Confidence: ${Math.round((entity.confidence || entity.count || 0.5) * 100)}%`}
                                   >
                                     {typeof entity === 'string' ? entity : entity.name}
-                                    {entity.confidence && (
+                                    {(entity.confidence || entity.count) && (
                                       <span className="ml-1 text-xs opacity-75">
-                                        {Math.round(entity.confidence * 100)}%
+                                        {entity.count ? `×${entity.count}` : `${Math.round(entity.confidence * 100)}%`}
                                       </span>
                                     )}
                                   </span>
@@ -239,18 +272,22 @@ value: Object.values(analysis.entities || {}).reduce((total, category) => total 
                           );
                         })
                       ) : (
-                        // Legacy array format fallback
+                        // Handle array format (both legacy and new multi-page)
                         <div className="space-y-2">
                           <h5 className="text-sm font-medium text-slate-400">
                             Entities ({(analysis.entities || []).length})
                           </h5>
                           <div className="flex flex-wrap gap-2">
-                            {(analysis.entities || []).slice(0, 10).map((entity, index) => (
+                            {(analysis.entities || []).slice(0, 12).map((entity, index) => (
                               <span 
                                 key={index}
                                 className="px-3 py-1 bg-secondary/20 text-secondary border border-secondary/30 rounded-full text-sm"
+                                title={entity.count ? `Found ${entity.count} times` : undefined}
                               >
-                                {entity}
+                                {typeof entity === 'string' ? entity : entity.name}
+                                {entity.count && entity.count > 1 && (
+                                  <span className="ml-1 text-xs opacity-75">×{entity.count}</span>
+                                )}
                               </span>
                             ))}
                           </div>

@@ -12,7 +12,7 @@ const TopicHierarchy = ({ topics }) => {
     setSelectedNode(node);
   };
 
-  const buildHierarchy = (topics) => {
+const buildHierarchy = (topics) => {
     const hierarchy = [];
     const mainTopics = topics.filter(topic => topic.relevance >= 70);
     
@@ -24,7 +24,8 @@ const TopicHierarchy = ({ topics }) => {
       
       hierarchy.push({
         ...mainTopic,
-        subtopics: subtopics
+        subtopics: subtopics,
+        pageCount: mainTopic.pages ? mainTopic.pages.length : 1
       });
     });
     
@@ -32,14 +33,17 @@ const TopicHierarchy = ({ topics }) => {
   };
 
   const hierarchy = buildHierarchy(topics);
+  const hasMultiplePages = topics.some(topic => topic.pages && topic.pages.length > 1);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-        <div>
+<div>
           <h3 className="text-lg font-semibold text-white">Topic Hierarchy</h3>
-          <p className="text-slate-400">Semantic topic clusters and relationships</p>
+          <p className="text-slate-400">
+            Semantic topic clusters and relationships{hasMultiplePages && " across all crawled pages"}
+          </p>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -89,9 +93,14 @@ const TopicHierarchy = ({ topics }) => {
                       onClick={() => handleNodeClick(topic)}
                     >
                       <div className="flex items-center justify-between">
-                        <div>
+<div>
                           <h4 className="font-medium text-white">{topic.name}</h4>
-                          <p className="text-sm text-slate-400">Frequency: {topic.frequency} mentions</p>
+                          <p className="text-sm text-slate-400">
+                            Frequency: {topic.frequency} mentions
+                            {topic.pageCount && topic.pageCount > 1 && (
+                              <span className="ml-2">• {topic.pageCount} pages</span>
+                            )}
+                          </p>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium text-primary">{topic.relevance}%</div>

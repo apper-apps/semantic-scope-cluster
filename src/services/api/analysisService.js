@@ -215,8 +215,56 @@ const analyzeTopics = (content) => {
   return topics.slice(0, 6); // Limit to 6 main topics
 };
 
-const analyzeSEO = (content) => {
-  const { title, metaDescription, headings, text } = content;
+const detectPageType = (url, title, headings, content) => {
+  const urlPath = url.toLowerCase();
+  const titleLower = title.toLowerCase();
+  const contentLower = content.toLowerCase();
+  
+  // Blog/Article detection
+  if (urlPath.includes('/blog') || urlPath.includes('/article') || urlPath.includes('/post') || 
+      urlPath.includes('/news') || titleLower.includes('blog') ||
+      /\d{4}\/\d{2}/.test(urlPath) || // Date pattern in URL
+      contentLower.includes('published') || contentLower.includes('author')) {
+    return 'blog';
+  }
+  
+  // Product page detection
+  if (urlPath.includes('/product') || urlPath.includes('/item') || urlPath.includes('/shop') ||
+      contentLower.includes('price') || contentLower.includes('add to cart') ||
+      contentLower.includes('buy now') || contentLower.includes('in stock')) {
+    return 'product';
+  }
+  
+  // Category/listing detection
+  if (urlPath.includes('/category') || urlPath.includes('/collection') || 
+      urlPath.includes('/archive') || titleLower.includes('category') ||
+      contentLower.includes('filter by') || contentLower.includes('sort by')) {
+    return 'category';
+  }
+  
+  // About page detection
+  if (urlPath.includes('/about') || urlPath.includes('/company') || 
+      titleLower.includes('about') || titleLower.includes('company')) {
+    return 'about';
+  }
+  
+  // Contact page detection
+  if (urlPath.includes('/contact') || titleLower.includes('contact') ||
+      contentLower.includes('phone') || contentLower.includes('email')) {
+    return 'contact';
+  }
+  
+  // Homepage detection
+  if (urlPath === '/' || urlPath === '' || titleLower.includes('home') ||
+      titleLower.includes('welcome')) {
+    return 'home';
+  }
+  
+  return 'page';
+};
+
+const analyzeSEO = (content, url = '') => {
+  const { title, metaDescription, headings, text, images, internalLinks, canonicalUrl, schema } = content;
   
   // Title analysis
   const titleScore = (() => {
@@ -243,7 +291,9 @@ const analyzeSEO = (content) => {
   const headingStructure = headings.map((heading, index) => {
     const level = heading.startsWith('H1') ? 1 : 
                  heading.startsWith('H2') ? 2 : 
-                 heading.startsWith('H3') ? 3 : 2;
+                 heading.startsWith('H3') ? 3 : 
+                 heading.startsWith('H4') ? 4 :
+                 heading.startsWith('H5') ? 5 : 6;
     const text = heading.replace(/^H[1-6]:\s*/, '');
     let score = 70;
     if (text.length >= 20 && text.length <= 70) score += 20;
@@ -251,98 +301,419 @@ const analyzeSEO = (content) => {
     return { level, text, score: Math.min(100, score) };
   });
 
-  const overallScore = Math.round((titleScore + metaScore + (headingStructure.length > 0 ? headingStructure.reduce((sum, h) => sum + h.score, 0) / headingStructure.length : 50)) / 3);
+  // Image analysis
+  const imageAnalysis = {
+    total: images?.length || 0,
+    withAlt: images?.filter(img => img.alt && img.alt.trim()).length || 0,
+    missingAlt: images?.filter(img => !img.alt || !img.alt.trim()).length || 0,
+    score: images?.length > 0 ? Math.round((images.filter(img => img.alt && img.alt.trim()).length / images.length) * 100) : 100
+  };
+
+  // Internal links analysis
+  const linkAnalysis = {
+    total: internalLinks?.length || 0,
+    withAnchor: internalLinks?.filter(link => link.text && link.text.trim()).length || 0,
+    score: internalLinks?.length > 0 ? Math.round((internalLinks.filter(link => link.text && link.text.trim()).length / internalLinks.length) * 100) : 100
+  };
+
+  // Schema markup analysis
+  const schemaAnalysis = {
+    hasJsonLD: schema?.hasJsonLD || text.includes('application/ld+json'),
+    isValid: schema?.isValid || true,
+    types: schema?.types || (text.includes('"@type"') ? ['WebPage'] : []),
+    score: schema?.hasJsonLD || text.includes('application/ld+json') ? 100 : 0
+  };
+
+  // Technical SEO
+  const technicalSEO = {
+    hasCanonical: !!canonicalUrl,
+    canonicalUrl: canonicalUrl || '',
+    score: canonicalUrl ? 100 : 50
+  };
+
+  // Page type detection
+  const pageType = detectPageType(url, title, headings, text);
+
+  const overallScore = Math.round((
+    titleScore + 
+    metaScore + 
+    (headingStructure.length > 0 ? headingStructure.reduce((sum, h) => sum + h.score, 0) / headingStructure.length : 50) +
+    imageAnalysis.score +
+    linkAnalysis.score +
+    schemaAnalysis.score +
+    technicalSEO.score
+  ) / 7);
 
   return {
     score: overallScore,
+    pageType,
     title: {
       score: titleScore,
       length: title?.length || 0,
-      hasKeywords: title ? /seo|marketing|web|business|service/i.test(title) : false
+      hasKeywords: title ? /seo|marketing|web|business|service/i.test(title) : false,
+      text: title || ''
     },
     meta: {
       score: metaScore,
       length: metaDescription?.length || 0,
-      hasCTA: metaDescription ? /call|click|learn|discover|get|find/i.test(metaDescription) : false
+      hasCTA: metaDescription ? /call|click|learn|discover|get|find/i.test(metaDescription) : false,
+      text: metaDescription || ''
     },
     headings: headingStructure,
-    schema: {
-      hasJsonLD: text.includes('application/ld+json'),
-      isValid: true,
-      types: text.includes('"@type"') ? ['WebPage'] : []
-    }
+    images: imageAnalysis,
+    internalLinks: linkAnalysis,
+    schema: schemaAnalysis,
+    technical: technicalSEO,
+    issues: [
+      ...(titleScore < 70 ? ['Title tag needs optimization'] : []),
+      ...(metaScore < 70 ? ['Meta description needs improvement'] : []),
+      ...(imageAnalysis.missingAlt > 0 ? [`${imageAnalysis.missingAlt} images missing alt text`] : []),
+      ...(headingStructure.filter(h => h.level === 1).length === 0 ? ['Missing H1 tag'] : []),
+      ...(headingStructure.filter(h => h.level === 1).length > 1 ? ['Multiple H1 tags found'] : []),
+      ...(!schemaAnalysis.hasJsonLD ? ['Missing structured data markup'] : []),
+      ...(!technicalSEO.hasCanonical ? ['Missing canonical URL'] : [])
+    ],
+    recommendations: [
+      'Optimize title tag length and keyword placement',
+      'Write compelling meta descriptions with clear CTAs',
+      'Implement proper heading hierarchy (H1-H6)',
+      'Add alt text to all images for accessibility',
+      'Include relevant internal links with descriptive anchor text',
+      'Add JSON-LD structured data markup',
+      'Implement canonical URLs to prevent duplicate content'
+    ]
   };
 };
 
-const performSemanticAnalysis = async (url) => {
-  try {
-    // Use a CORS proxy service to fetch the website content
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch website: ${response.status}`);
+const extractPageContent = (doc, url) => {
+  // Extract basic SEO elements
+  const title = doc.querySelector('title')?.textContent?.trim() || '';
+  const metaDescription = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
+  const canonicalUrl = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') || '';
+  
+  // Extract headings
+  const headingElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const headings = Array.from(headingElements).map(h => 
+    `${h.tagName}: ${h.textContent.trim()}`
+  ).filter(h => h.length > 3);
+
+  // Extract images with alt text
+  const imageElements = doc.querySelectorAll('img');
+  const images = Array.from(imageElements).map(img => ({
+    src: img.src || img.getAttribute('src') || '',
+    alt: img.alt || '',
+    title: img.title || ''
+  }));
+
+  // Extract internal links
+  const linkElements = doc.querySelectorAll('a[href]');
+  const baseUrl = new URL(url);
+  const internalLinks = Array.from(linkElements)
+    .map(link => ({
+      href: link.href,
+      text: link.textContent.trim(),
+      title: link.title || ''
+    }))
+    .filter(link => {
+      try {
+        const linkUrl = new URL(link.href);
+        return linkUrl.hostname === baseUrl.hostname;
+      } catch {
+        return false;
+      }
+    });
+
+  // Extract structured data
+  const jsonLdElements = doc.querySelectorAll('script[type="application/ld+json"]');
+  const schema = {
+    hasJsonLD: jsonLdElements.length > 0,
+    isValid: true,
+    types: []
+  };
+
+  if (jsonLdElements.length > 0) {
+    try {
+      Array.from(jsonLdElements).forEach(script => {
+        const data = JSON.parse(script.textContent);
+        if (data['@type']) {
+          schema.types.push(data['@type']);
+        }
+      });
+    } catch (e) {
+      schema.isValid = false;
     }
+  }
 
-    const data = await response.json();
-    const html = data.contents;
-
-    // Parse HTML content
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // Extract content
-    const title = doc.querySelector('title')?.textContent?.trim() || '';
-    const metaDescription = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-    
-    // Extract headings
-    const headingElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    const headings = Array.from(headingElements).map(h => 
-      `${h.tagName}: ${h.textContent.trim()}`
-    ).filter(h => h.length > 3);
-
-    // Extract main text content
+  // Extract main text content (avoiding nav, footer, ads)
+  const contentSelectors = [
+    'main', 'article', '.content', '.post', '.entry',
+    '[role="main"]', '.main-content', '#content'
+  ];
+  
+  let mainContent = '';
+  for (const selector of contentSelectors) {
+    const element = doc.querySelector(selector);
+    if (element) {
+      mainContent = element.textContent.trim();
+      break;
+    }
+  }
+  
+  // Fallback to body content if no main content found
+  if (!mainContent) {
     const textElements = doc.querySelectorAll('p, div, article, section');
-    const text = Array.from(textElements)
+    mainContent = Array.from(textElements)
       .map(el => el.textContent.trim())
       .filter(text => text.length > 20)
-      .join(' ')
-      .slice(0, 5000); // Limit text for analysis
+      .join(' ');
+  }
+  
+  const text = mainContent.slice(0, 5000); // Limit text for analysis
 
-    const content = { title, metaDescription, headings, text };
+  return {
+    title,
+    metaDescription,
+    canonicalUrl,
+    headings,
+    images,
+    internalLinks,
+    schema,
+    text
+  };
+};
 
-    // Perform topic analysis
-    const topics = analyzeTopics(content);
+const findLinkedPages = (doc, baseUrl, maxPages = 25) => {
+  const links = new Set();
+  const linkElements = doc.querySelectorAll('a[href]');
+  
+  Array.from(linkElements).forEach(link => {
+    try {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      
+      let absoluteUrl;
+      if (href.startsWith('http')) {
+        absoluteUrl = href;
+      } else if (href.startsWith('/')) {
+        absoluteUrl = new URL(href, baseUrl).href;
+      } else {
+        absoluteUrl = new URL(href, baseUrl).href;
+      }
+      
+      const url = new URL(absoluteUrl);
+      const base = new URL(baseUrl);
+      
+      // Only include same domain links
+      if (url.hostname === base.hostname) {
+        // Filter out common non-content URLs
+        const path = url.pathname.toLowerCase();
+        if (!path.includes('/admin') && 
+            !path.includes('/login') && 
+            !path.includes('/register') &&
+            !path.includes('/cart') &&
+            !path.includes('/checkout') &&
+            !path.includes('/search') &&
+            !path.includes('.xml') &&
+            !path.includes('.pdf') &&
+            !path.includes('.jpg') &&
+            !path.includes('.png') &&
+            !href.startsWith('#') &&
+            !href.startsWith('mailto:') &&
+            !href.startsWith('tel:')) {
+          links.add(absoluteUrl);
+          
+          if (links.size >= maxPages) {
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // Skip invalid URLs
+    }
+  });
+  
+  return Array.from(links).slice(0, maxPages);
+};
+
+const performSemanticAnalysis = async (url, onProgress) => {
+  try {
+    const pages = [];
+    const crawledUrls = new Set();
+    const maxPages = 25;
+    let currentPage = 0;
     
-// Enhanced entity extraction with categorization
-    const entities = extractEntities(text);
+    // Start with the main URL
+    const urlQueue = [url];
+    
+    while (urlQueue.length > 0 && pages.length < maxPages) {
+      const currentUrl = urlQueue.shift();
+      if (crawledUrls.has(currentUrl)) continue;
+      
+      crawledUrls.add(currentUrl);
+      currentPage++;
+      
+      // Progress callback for UI updates
+      if (onProgress) {
+        onProgress({
+          current: currentPage,
+          total: Math.min(urlQueue.length + currentPage + 5, maxPages),
+          url: currentUrl,
+          status: 'crawling'
+        });
+      }
+      
+      try {
+        // Use CORS proxy to fetch page content
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(currentUrl)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          console.warn(`Failed to fetch ${currentUrl}: ${response.status}`);
+          continue;
+        }
 
-    // Perform SEO analysis
-    const seoMetrics = analyzeSEO(content);
+        const data = await response.json();
+        const html = data.contents;
 
-    // Generate URL suggestions based on actual topics
-    const urlSuggestions = topics
-      .slice(0, 8)
-      .map(topic => topic.name.toLowerCase().replace(/\s+/g, '-'))
-      .concat(
-        topics.slice(0, 3).flatMap(topic =>
-          topic.subtopics.slice(0, 2).map(sub =>
-            `${topic.name.toLowerCase().replace(/\s+/g, '-')}/${sub.name.toLowerCase().replace(/\s+/g, '-')}`
-          )
-        )
-      )
+        // Parse HTML content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract comprehensive page content
+        const pageContent = extractPageContent(doc, currentUrl);
+        
+        // Find additional pages to crawl (only from homepage initially)
+        if (currentPage === 1) {
+          const linkedPages = findLinkedPages(doc, url, maxPages - 1);
+          linkedPages.forEach(linkedUrl => {
+            if (!crawledUrls.has(linkedUrl) && urlQueue.length + pages.length < maxPages) {
+              urlQueue.push(linkedUrl);
+            }
+          });
+        }
+
+        // Analyze the page content
+        const topics = analyzeTopics(pageContent);
+        const entities = extractEntities(pageContent.text);
+        const seoMetrics = analyzeSEO(pageContent, currentUrl);
+
+        pages.push({
+          url: currentUrl,
+          content: pageContent,
+          topics,
+          entities,
+          seoMetrics,
+          crawledAt: new Date().toISOString()
+        });
+
+        // Brief delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+      } catch (error) {
+        console.warn(`Error processing ${currentUrl}:`, error.message);
+        continue;
+      }
+    }
+
+    if (pages.length === 0) {
+      throw new Error('No pages could be successfully crawled and analyzed');
+    }
+
+    // Aggregate results across all pages
+    const allTopics = pages.flatMap(page => page.topics);
+    const allEntities = pages.flatMap(page => 
+      Array.isArray(page.entities) ? page.entities : 
+      Object.values(page.entities || {}).flat()
+    );
+
+    // Merge and deduplicate topics
+    const topicMap = new Map();
+    allTopics.forEach(topic => {
+      const existing = topicMap.get(topic.name);
+      if (existing) {
+        existing.frequency += topic.frequency;
+        existing.relevance = Math.max(existing.relevance, topic.relevance);
+        existing.pages = [...new Set([...existing.pages, topic.url])];
+      } else {
+        topicMap.set(topic.name, {
+          ...topic,
+          pages: [pages.find(p => p.topics.includes(topic))?.url].filter(Boolean)
+        });
+      }
+    });
+
+    // Merge and categorize entities
+    const entityMap = new Map();
+    allEntities.forEach(entity => {
+      const entityName = typeof entity === 'string' ? entity : entity.name;
+      if (entityMap.has(entityName)) {
+        entityMap.get(entityName).count++;
+      } else {
+        entityMap.set(entityName, {
+          name: entityName,
+          count: 1,
+          confidence: typeof entity === 'object' ? entity.confidence : 0.8
+        });
+      }
+    });
+
+    // Calculate overall SEO score
+    const avgSeoScore = Math.round(
+      pages.reduce((sum, page) => sum + page.seoMetrics.score, 0) / pages.length
+    );
+
+    // Generate comprehensive URL suggestions
+    const topTopics = Array.from(topicMap.values())
+      .sort((a, b) => b.relevance - a.relevance)
       .slice(0, 10);
 
+    const urlSuggestions = topTopics
+      .map(topic => topic.name.toLowerCase().replace(/\s+/g, '-'))
+      .concat(
+        pages.map(page => {
+          const pathParts = new URL(page.url).pathname.split('/').filter(Boolean);
+          return pathParts.join('/');
+        }).filter(Boolean)
+      )
+      .slice(0, 15);
+
+    // Page type summary
+    const pageTypes = {};
+    pages.forEach(page => {
+      const type = page.seoMetrics.pageType;
+      pageTypes[type] = (pageTypes[type] || 0) + 1;
+    });
+
     return {
-      topics,
-      entities,
-      seoMetrics,
-      urlSuggestions
+      pages,
+      topics: Array.from(topicMap.values()),
+      entities: Array.from(entityMap.values()),
+      seoMetrics: {
+        score: avgSeoScore,
+        pageCount: pages.length,
+        pageTypes,
+        issues: pages.flatMap(page => page.seoMetrics.issues),
+        recommendations: [
+          'Optimize page titles and meta descriptions across all pages',
+          'Implement consistent heading hierarchy site-wide',
+          'Add missing alt text to images',
+          'Improve internal linking structure',
+          'Add structured data markup to key pages',
+          'Ensure all pages have canonical URLs'
+        ]
+      },
+      urlSuggestions,
+      crawlSummary: {
+        totalPages: pages.length,
+        crawledAt: new Date().toISOString(),
+        domain: new URL(url).hostname,
+        pageTypes
+      }
     };
 
   } catch (error) {
-    console.error('Analysis error:', error);
-    throw new Error(`Unable to analyze website content: ${error.message}`);
+    console.error('Multi-page analysis error:', error);
+    throw new Error(`Unable to crawl and analyze website: ${error.message}`);
   }
 };
 
@@ -362,7 +733,7 @@ export const analysisService = {
   },
 
 async analyzeUrl(input, inputMode = 'url') {
-    await delay(1500); // Reduced delay for real analysis
+await delay(1500); // Reduced delay for real analysis
 
     if (inputMode === 'url') {
       try {
@@ -378,8 +749,14 @@ async analyzeUrl(input, inputMode = 'url') {
       }
 
       try {
-        // Perform real semantic analysis on URL
-        const analysisResults = await performSemanticAnalysis(input);
+        // Progress tracking for multi-page crawling
+        let crawlProgress = null;
+        const onProgress = (progress) => {
+          crawlProgress = progress;
+        };
+
+        // Perform comprehensive semantic analysis with crawling
+        const analysisResults = await performSemanticAnalysis(input, onProgress);
         
         // Create new analysis record
         const newAnalysis = {
@@ -398,7 +775,7 @@ async analyzeUrl(input, inputMode = 'url') {
         } else if (error.message.includes('CORS')) {
           throw new Error("The website is blocking cross-origin requests. This is a browser security limitation.");
         } else {
-          throw new Error(error.message || "Failed to analyze website content. Please try again.");
+          throw new Error(error.message || "Failed to crawl and analyze website content. Please try again.");
         }
       }
     } else {
