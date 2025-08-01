@@ -136,16 +136,7 @@ export const analysisService = {
       new URL(url);
     } catch {
       throw new Error("Invalid URL format");
-    }
-
-    // Simulate potential failures
-    if (Math.random() < 0.05) {
-      throw new Error("Network timeout - please try again");
-    }
-
-    if (Math.random() < 0.03) {
-      throw new Error("Unable to access website - check if the URL is correct");
-    }
+}
 
     // Perform mock semantic analysis
     const analysisResults = performSemanticAnalysis(url);

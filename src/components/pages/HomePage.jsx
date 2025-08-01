@@ -22,12 +22,9 @@ const HomePage = () => {
     setError("");
     setAnalysis(null);
 
-    try {
+try {
       const result = await analysisService.analyzeUrl(url);
       setAnalysis(result);
-      
-      // Navigate to analysis page with the result
-      navigate(`/analysis/${result.id}`, { state: { analysis: result } });
       
       toast.success("Analysis completed successfully!");
     } catch (err) {
