@@ -206,7 +206,7 @@ const extractKeywords = (text) => {
     .map(([word, freq]) => ({ word, frequency: freq }));
 };
 
-const analyzeTopics = (content, url, domainNiche = null) => {
+const analyzeTopics = (content, url, keywords, domainNiche = null) => {
   // Enhanced NLP entity detection with categorization
   const detectNamedEntities = (text) => {
     const entities = {
