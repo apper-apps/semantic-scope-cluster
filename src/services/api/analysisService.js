@@ -1,6 +1,5 @@
 import mockAnalyses from '@/services/mockData/analyses.json'
-import React from 'react'
-import ErrorComponent from '@/components/ui/Error'
+// Service file - no UI imports needed
 // Optimized minimal delay for better performance
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1073,7 +1072,7 @@ const performSemanticAnalysis = async (url, onProgress) => {
     const domainNiche = detectDomainNiche(allContent);
 // Analyze each page with domain context
     pages.forEach(page => {
-page.topics = analyzeTopics(page.content, page.url, domainNiche);
+page.topics = analyzeTopics(page.content, page.url, [], domainNiche);
       
       // Extract and aggregate entities across pages
       page.entities = page.topics.reduce((allEntities, topic) => {
@@ -1326,8 +1325,7 @@ await delay(100); // Optimized delay for better performance
         };
 
         // Perform topic analysis on text
-        const topics = analyzeTopics(content);
-        
+const topics = analyzeTopics(content, '', []);
         // Enhanced entity extraction with categorization
         const entities = extractEntities(input);
         
