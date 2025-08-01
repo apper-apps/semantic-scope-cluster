@@ -459,29 +459,42 @@ const AnalysisResults = ({ analysis, onRetry }) => {
 {/* Named Entities by Category */}
                         {cluster.categorizedEntities && Object.values(cluster.categorizedEntities).some(entities => entities.length > 0) && (
                           <div>
-                            <h5 className="text-sm font-medium text-slate-300 mb-2">Named Entities (NLP)</h5>
-                            <div className="space-y-2">
+                            <h5 className="text-sm font-medium text-slate-300 mb-2">Named Entities (NLP Detection)</h5>
+                            <div className="space-y-3">
                               {Object.entries(cluster.categorizedEntities).map(([category, entities]) =>
                                 entities.length > 0 && (
-                                  <div key={category} className="flex items-center space-x-2">
-                                    <ApperIcon 
-                                      name={category === 'PERSON' ? 'User' : category === 'ORGANIZATION' ? 'Building' : category === 'PRODUCT' ? 'Package' : category === 'LOCATION' ? 'MapPin' : 'Tag'} 
-                                      className={`w-3 h-3 ${
-                                        category === 'PERSON' ? 'text-blue-400' : 
-                                        category === 'ORGANIZATION' ? 'text-green-400' : 
-                                        category === 'PRODUCT' ? 'text-purple-400' : 
-                                        category === 'LOCATION' ? 'text-orange-400' : 'text-slate-400'
-                                      }`} 
-                                    />
-                                    <span className="text-xs text-slate-400 capitalize min-w-[60px]">{category.toLowerCase()}:</span>
-                                    <div className="flex flex-wrap gap-1">
-                                      {entities.slice(0, 4).map((entity, index) => (
-                                        <span key={index} className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-xs">
+                                  <div key={category} className="bg-slate-900 rounded-lg p-3">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <ApperIcon 
+                                        name={category === 'PERSON' ? 'User' : category === 'ORGANIZATION' ? 'Building' : category === 'PRODUCT' ? 'Package' : category === 'LOCATION' ? 'MapPin' : 'Tag'} 
+                                        className={`w-4 h-4 ${
+                                          category === 'PERSON' ? 'text-blue-400' : 
+                                          category === 'ORGANIZATION' ? 'text-green-400' : 
+                                          category === 'PRODUCT' ? 'text-purple-400' : 
+                                          category === 'LOCATION' ? 'text-orange-400' : 'text-slate-400'
+                                        }`} 
+                                      />
+                                      <span className="text-sm font-medium text-slate-300 capitalize">
+                                        {category.toLowerCase()} ({entities.length})
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 ml-6">
+                                      {entities.slice(0, 5).map((entity, index) => (
+                                        <span 
+                                          key={index} 
+                                          className={`px-2 py-1 rounded text-xs font-medium ${
+                                            category === 'PERSON' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 
+                                            category === 'ORGANIZATION' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 
+                                            category === 'PRODUCT' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 
+                                            category === 'LOCATION' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 
+                                            'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+                                          }`}
+                                        >
                                           {entity}
                                         </span>
                                       ))}
-                                      {entities.length > 4 && (
-                                        <span className="text-xs text-slate-500">+{entities.length - 4}</span>
+                                      {entities.length > 5 && (
+                                        <span className="text-xs text-slate-500 px-2 py-1">+{entities.length - 5} more</span>
                                       )}
                                     </div>
                                   </div>

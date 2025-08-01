@@ -552,15 +552,37 @@ const generateSemanticClusters = (allTopics, domainNiche) => {
   });
 
   // Calculate cluster metrics and convert to array
-  return Array.from(clusters.values()).map(cluster => ({
-    ...cluster,
-    topicCount: cluster.topics.length,
-    avgRelevance: Math.round(cluster.topics.reduce((sum, t) => sum + (t.crossPageRelevance || t.relevance || 0), 0) / cluster.topics.length),
-    uniqueEntities: Array.from(cluster.uniqueEntities).slice(0, 10),
-    pageSpread: cluster.pageSpread.size,
-    contextExamples: cluster.contextExamples.slice(0, 3),
-    dominanceScore: cluster.totalMentions + (cluster.topics.length * 5) + (cluster.pageSpread.size * 3)
-  }))
+return Array.from(clusters.values()).map(cluster => {
+    // Aggregate categorized entities from all topics in cluster
+    const categorizedEntities = { PERSON: new Set(), ORGANIZATION: new Set(), PRODUCT: new Set(), LOCATION: new Set(), OTHER: new Set() };
+    
+    cluster.topics.forEach(topic => {
+      if (topic.entities) {
+        Object.entries(topic.entities).forEach(([category, entities]) => {
+          if (categorizedEntities[category]) {
+            entities.forEach(entity => categorizedEntities[category].add(entity));
+          }
+        });
+      }
+    });
+
+    // Convert Sets to Arrays
+    const finalCategorizedEntities = {};
+    Object.entries(categorizedEntities).forEach(([category, entitySet]) => {
+      finalCategorizedEntities[category] = Array.from(entitySet);
+    });
+
+    return {
+      ...cluster,
+      topicCount: cluster.topics.length,
+      avgRelevance: Math.round(cluster.topics.reduce((sum, t) => sum + (t.crossPageRelevance || t.relevance || 0), 0) / cluster.topics.length),
+      uniqueEntities: Array.from(cluster.uniqueEntities).slice(0, 10),
+      categorizedEntities: finalCategorizedEntities,
+      pageSpread: cluster.pageSpread.size,
+      contextExamples: cluster.contextExamples.slice(0, 3),
+      dominanceScore: cluster.totalMentions + (cluster.topics.length * 5) + (cluster.pageSpread.size * 3)
+    };
+  })
   .sort((a, b) => b.dominanceScore - a.dominanceScore)
   .slice(0, 8); // Limit to top 8 clusters
 };
@@ -1137,13 +1159,21 @@ if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.re
     });
 
     // Convert aggregated data to final topic list
-    const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
+const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
       ...topic,
       frequency: topic.totalMentions,
       avgFrequencyPerPage: Math.round(topic.totalMentions / topic.pageCount),
       crossPageRelevance: Math.round(topic.relevanceScores.reduce((a, b) => a + b, 0) / topic.relevanceScores.length),
       contextExamples: topic.contextExamples.slice(0, 4),
-      relatedEntities: Array.from(topic.relatedEntities).slice(0, 6)
+      relatedEntities: Array.from(topic.relatedEntities).slice(0, 6),
+      // Convert entity Sets to Arrays for final output
+      entities: Object.fromEntries(
+        Object.entries(topic.entities).map(([category, entitySet]) => [
+          category,
+          Array.from(entitySet)
+        ])
+      ),
+      entityFrequency: topic.entityFrequency
     })).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance);
 
 // Generate semantic clusters

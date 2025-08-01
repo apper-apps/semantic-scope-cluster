@@ -169,7 +169,14 @@
             ]
           }
         ],
-        "uniqueEntities": ["OpenAI", "ChatGPT", "GPT-4", "TensorFlow", "Neural Networks", "Cloud Computing"],
+"uniqueEntities": ["OpenAI", "ChatGPT", "GPT-4", "TensorFlow", "Neural Networks", "Cloud Computing"],
+        "categorizedEntities": {
+          "ORGANIZATION": ["OpenAI", "Google AI", "Microsoft Azure"],
+          "PRODUCT": ["ChatGPT", "GPT-4", "TensorFlow", "Neural Networks"],
+          "PERSON": ["Geoffrey Hinton", "Andrew Ng"],
+          "LOCATION": ["Silicon Valley"],
+          "OTHER": ["Cloud Computing", "Machine Learning"]
+        },
         "contextExamples": [
           "AI-powered content tools are revolutionizing how we create and optimize digital content",
           "Machine learning algorithms can now understand context and generate human-like text",
@@ -204,6 +211,13 @@
           }
         ],
         "uniqueEntities": ["Content Marketing", "Digital Marketing", "SEO Writing", "Google Keyword Planner", "SEMrush", "Ahrefs"],
+        "categorizedEntities": {
+          "ORGANIZATION": ["Google", "SEMrush", "Ahrefs"],
+          "PRODUCT": ["Google Keyword Planner", "Google Analytics", "WordPress"],
+          "PERSON": ["Neil Patel", "Rand Fishkin"],
+          "LOCATION": ["United States"],
+          "OTHER": ["Content Marketing", "Digital Marketing", "SEO Writing"]
+        },
         "contextExamples": [
           "Effective copywriting requires understanding your audience and crafting compelling messages",
           "Keyword research tools like SEMrush and Ahrefs provide competitive insights",
