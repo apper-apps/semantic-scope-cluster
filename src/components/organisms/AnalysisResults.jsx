@@ -13,9 +13,56 @@ const AnalysisResults = ({ analysis, onRetry }) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showExportModal, setShowExportModal] = useState(false);
 
+  // Memoized calculations for better performance - must be called before any early returns
+  const metrics = useMemo(() => {
+    if (!analysis) return [];
+    return [
+      {
+        title: "Pages Crawled",
+        value: analysis.pages?.length || 1,
+        icon: "Globe",
+        color: "primary",
+        description: "Total pages analyzed"
+      },
+      {
+        title: "Total Topics",
+        value: analysis.topics?.length || 0,
+        icon: "Hash",
+        color: "secondary",
+        description: "Semantic topics across all pages"
+      },
+      {
+        title: "Named Entities",
+        value: Array.isArray(analysis.entities) ? analysis.entities.length : 
+               Object.values(analysis.entities || {}).reduce((total, category) => 
+                 total + (Array.isArray(category) ? category.length : 0), 0),
+        icon: "Tag", 
+        color: "accent",
+        description: "Entities found across pages"
+      },
+      {
+        title: "Average SEO Score",
+        value: `${analysis.seoMetrics?.score || 0}/100`,
+        icon: "TrendingUp",
+        color: (analysis.seoMetrics?.score || 0) >= 80 ? "success" : (analysis.seoMetrics?.score || 0) >= 60 ? "warning" : "error",
+        description: "Overall SEO health"
+      }
+    ];
+  }, [analysis?.pages?.length, analysis?.topics?.length, analysis?.entities, analysis?.seoMetrics?.score]);
+
+  // Page type breakdown for multi-page analysis
+  const pageTypeBreakdown = useMemo(() => 
+    analysis?.crawlSummary?.pageTypes || analysis?.seoMetrics?.pageTypes || {}, 
+    [analysis?.crawlSummary?.pageTypes, analysis?.seoMetrics?.pageTypes]
+  );
+
+  // Memoized top topics for performance
+  const topTopics = useMemo(() => analysis?.topics?.slice(0, 6) || [], [analysis?.topics]);
+
+  // Early return after all hooks have been called
   if (!analysis) return null;
 
-const tabs = [
+  const tabs = [
     { id: "overview", label: "Overview", icon: "BarChart3" },
     { id: "topics", label: "Topic Analysis", icon: "Brain" },
     { id: "clusters", label: "Semantic Clusters", icon: "Network" },
@@ -23,49 +70,7 @@ const tabs = [
     { id: "seo", label: "SEO Audit", icon: "Search" }
   ];
 
-// Memoized calculations for better performance
-const metrics = useMemo(() => [
-    {
-      title: "Pages Crawled",
-      value: analysis.pages?.length || 1,
-      icon: "Globe",
-      color: "primary",
-      description: "Total pages analyzed"
-    },
-    {
-      title: "Total Topics",
-      value: analysis.topics.length,
-      icon: "Hash",
-      color: "secondary",
-      description: "Semantic topics across all pages"
-    },
-    {
-      title: "Named Entities",
-      value: Array.isArray(analysis.entities) ? analysis.entities.length : 
-             Object.values(analysis.entities || {}).reduce((total, category) => 
-               total + (Array.isArray(category) ? category.length : 0), 0),
-      icon: "Tag", 
-      color: "accent",
-      description: "Entities found across pages"
-    },
-    {
-      title: "Average SEO Score",
-      value: `${analysis.seoMetrics.score}/100`,
-      icon: "TrendingUp",
-      color: analysis.seoMetrics.score >= 80 ? "success" : analysis.seoMetrics.score >= 60 ? "warning" : "error",
-      description: "Overall SEO health"
-    }
-  ], [analysis.pages?.length, analysis.topics.length, analysis.entities, analysis.seoMetrics.score]);
-
-  // Page type breakdown for multi-page analysis
-  const pageTypeBreakdown = useMemo(() => 
-    analysis.crawlSummary?.pageTypes || analysis.seoMetrics?.pageTypes || {}, 
-    [analysis.crawlSummary?.pageTypes, analysis.seoMetrics?.pageTypes]
-  );
   const hasMultiplePages = (analysis.pages?.length || 0) > 1;
-
-  // Memoized top topics for performance
-  const topTopics = useMemo(() => analysis.topics.slice(0, 6), [analysis.topics]);
 
   return (
     <motion.div
