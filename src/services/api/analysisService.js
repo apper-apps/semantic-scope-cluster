@@ -4,6 +4,22 @@ import mockAnalyses from "@/services/mockData/analyses.json";
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Mock NLP analysis function
+// Extract meaningful context snippets for topics
+const extractTopicContext = (topic, text, maxContexts = 3) => {
+  const contexts = [];
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  for (const sentence of sentences) {
+    if (contexts.length >= maxContexts) break;
+    const words = topic.toLowerCase().split(' ');
+    if (words.some(word => sentence.toLowerCase().includes(word))) {
+      contexts.push(sentence.trim().substring(0, 150) + (sentence.length > 150 ? '...' : ''));
+    }
+  }
+  
+  return contexts;
+};
+
 // Helper function to calculate entity confidence scores
 const calculateConfidence = (entity, text, category) => {
   const occurrences = (text.match(new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
@@ -17,7 +33,43 @@ const calculateConfidence = (entity, text, category) => {
   
   return Math.min(baseScore, 1.0);
 };
+// Detect website's primary domain niche for relevance scoring
+const detectDomainNiche = (allContent) => {
+  const nichePatterns = {
+    'Technology': ['tech', 'software', 'development', 'programming', 'digital', 'innovation', 'startup', 'saas', 'api', 'platform'],
+    'E-commerce': ['shop', 'store', 'product', 'buy', 'sell', 'cart', 'payment', 'retail', 'marketplace', 'commerce'],
+    'Healthcare': ['health', 'medical', 'doctor', 'patient', 'treatment', 'wellness', 'care', 'medicine', 'therapy'],
+    'Education': ['education', 'learning', 'course', 'student', 'teach', 'training', 'university', 'school', 'academic'],
+    'Finance': ['finance', 'money', 'investment', 'banking', 'loan', 'insurance', 'financial', 'credit', 'payment'],
+    'Marketing': ['marketing', 'advertising', 'campaign', 'brand', 'social media', 'seo', 'digital marketing', 'promotion'],
+    'Business Services': ['business', 'service', 'consulting', 'professional', 'management', 'strategy', 'corporate', 'enterprise'],
+    'Real Estate': ['real estate', 'property', 'home', 'house', 'apartment', 'rent', 'buy', 'mortgage', 'listing'],
+    'Travel': ['travel', 'hotel', 'vacation', 'booking', 'flight', 'tourism', 'destination', 'trip', 'resort'],
+    'Food & Dining': ['food', 'restaurant', 'recipe', 'cooking', 'dining', 'menu', 'cuisine', 'chef', 'delivery']
+  };
 
+  const nicheScores = {};
+  const combinedText = allContent.toLowerCase();
+
+  Object.entries(nichePatterns).forEach(([niche, patterns]) => {
+    let score = 0;
+    patterns.forEach(pattern => {
+      const matches = (combinedText.match(new RegExp(pattern, 'gi')) || []).length;
+      score += matches;
+    });
+    nicheScores[niche] = score;
+  });
+
+  const topNiche = Object.entries(nicheScores).reduce((a, b) => 
+    nicheScores[a[0]] > nicheScores[b[0]] ? a : b
+  );
+
+  return {
+    primary: topNiche[0],
+    score: topNiche[1],
+    all: nicheScores
+  };
+};
 // Enhanced entity extraction with NLP patterns
 const extractEntities = (text) => {
   const entities = {
@@ -152,21 +204,25 @@ const extractKeywords = (text) => {
     .map(([word, freq]) => ({ word, frequency: freq }));
 };
 
-const analyzeTopics = (content) => {
+const analyzeTopics = (content, url, domainNiche = null) => {
   const { title, headings, text } = content;
   const allText = `${title} ${headings.join(' ')} ${text}`.toLowerCase();
+  const fullText = `${title}. ${headings.join('. ')}. ${text}`;
   
   const keywords = extractKeywords(allText);
   
-  // Group keywords into topics based on common themes
+  // Enhanced topic patterns with domain-specific weighting
   const topicPatterns = {
-    'Digital Marketing': ['marketing', 'seo', 'google', 'advertising', 'campaign', 'analytics', 'conversion', 'traffic', 'keywords', 'ranking'],
-    'Web Development': ['javascript', 'react', 'html', 'css', 'web', 'development', 'programming', 'code', 'frontend', 'backend', 'api'],
-    'Business Strategy': ['business', 'strategy', 'growth', 'revenue', 'profit', 'sales', 'market', 'customer', 'service', 'company'],
-    'Technology': ['technology', 'tech', 'software', 'app', 'platform', 'system', 'digital', 'innovation', 'data', 'cloud'],
-    'Content Creation': ['content', 'blog', 'article', 'writing', 'media', 'video', 'image', 'social', 'post', 'story'],
-    'E-commerce': ['shop', 'store', 'product', 'price', 'buy', 'sell', 'cart', 'payment', 'order', 'shipping'],
-    'Design': ['design', 'ui', 'ux', 'interface', 'user', 'experience', 'visual', 'layout', 'graphic', 'brand']
+    'Digital Marketing': ['marketing', 'seo', 'google', 'advertising', 'campaign', 'analytics', 'conversion', 'traffic', 'keywords', 'ranking', 'social media', 'ppc', 'sem'],
+    'Web Development': ['javascript', 'react', 'html', 'css', 'web', 'development', 'programming', 'code', 'frontend', 'backend', 'api', 'framework', 'responsive'],
+    'Business Strategy': ['business', 'strategy', 'growth', 'revenue', 'profit', 'sales', 'market', 'customer', 'service', 'company', 'management', 'leadership'],
+    'Technology & Innovation': ['technology', 'tech', 'software', 'app', 'platform', 'system', 'digital', 'innovation', 'data', 'cloud', 'ai', 'automation'],
+    'Content Creation': ['content', 'blog', 'article', 'writing', 'media', 'video', 'image', 'social', 'post', 'story', 'copywriting', 'editorial'],
+    'E-commerce': ['shop', 'store', 'product', 'price', 'buy', 'sell', 'cart', 'payment', 'order', 'shipping', 'retail', 'marketplace'],
+    'User Experience': ['design', 'ui', 'ux', 'interface', 'user', 'experience', 'visual', 'layout', 'graphic', 'brand', 'usability', 'accessibility'],
+    'Data & Analytics': ['data', 'analytics', 'metrics', 'tracking', 'insights', 'reporting', 'dashboard', 'kpi', 'measurement', 'statistics'],
+    'Security & Privacy': ['security', 'privacy', 'protection', 'encryption', 'compliance', 'gdpr', 'ssl', 'authentication', 'authorization'],
+    'Performance & Optimization': ['performance', 'optimization', 'speed', 'loading', 'efficiency', 'scalability', 'caching', 'compression']
   };
 
   const topics = [];
@@ -179,23 +235,44 @@ const analyzeTopics = (content) => {
 
     if (matchingKeywords.length > 0) {
       const totalFreq = matchingKeywords.reduce((sum, { frequency }) => sum + frequency, 0);
-      const relevance = Math.min(95, Math.round((totalFreq / keywords.length) * 100) + 20);
+      let baseRelevance = Math.min(95, Math.round((totalFreq / keywords.length) * 100) + 20);
+      
+      // Domain-specific relevance boost
+      if (domainNiche && domainNiche.primary) {
+        const nicheBoosts = {
+          'Technology': ['Technology & Innovation', 'Web Development', 'Data & Analytics', 'Security & Privacy'],
+          'Marketing': ['Digital Marketing', 'Content Creation', 'Data & Analytics'],
+          'E-commerce': ['E-commerce', 'User Experience', 'Performance & Optimization'],
+          'Business Services': ['Business Strategy', 'Data & Analytics', 'Performance & Optimization']
+        };
+        
+        const relevantTopics = nicheBoosts[domainNiche.primary] || [];
+        if (relevantTopics.includes(topicName)) {
+          baseRelevance = Math.min(98, baseRelevance + 15);
+        }
+      }
       
       matchingKeywords.forEach(({ word }) => usedKeywords.add(word));
 
+      // Extract context examples
+      const contextExamples = extractTopicContext(topicName, fullText, 2);
+      
       const subtopics = matchingKeywords.slice(0, 3).map(({ word, frequency }) => ({
         name: word.charAt(0).toUpperCase() + word.slice(1),
         frequency,
-        relevance: Math.min(90, relevance - 10 + Math.random() * 20),
+        relevance: Math.min(90, baseRelevance - 10 + Math.random() * 20),
         relatedEntities: matchingKeywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1))
       }));
 
       topics.push({
         name: topicName,
         frequency: totalFreq,
-        relevance,
+        relevance: baseRelevance,
         subtopics,
-        relatedEntities: matchingKeywords.map(({ word }) => word.charAt(0).toUpperCase() + word.slice(1))
+        relatedEntities: matchingKeywords.map(({ word }) => word.charAt(0).toUpperCase() + word.slice(1)),
+        contextExamples,
+        sourceUrl: url,
+        pages: [url] // Track which pages contain this topic
       });
     }
   });
@@ -203,16 +280,21 @@ const analyzeTopics = (content) => {
   // Add any remaining high-frequency keywords as general topics
   const remainingKeywords = keywords.filter(({ word }) => !usedKeywords.has(word)).slice(0, 2);
   remainingKeywords.forEach(({ word, frequency }) => {
+    const contextExamples = extractTopicContext(word, fullText, 1);
+    
     topics.push({
       name: word.charAt(0).toUpperCase() + word.slice(1),
       frequency,
       relevance: Math.min(85, 40 + frequency * 2),
       subtopics: [],
-      relatedEntities: [word.charAt(0).toUpperCase() + word.slice(1)]
+      relatedEntities: [word.charAt(0).toUpperCase() + word.slice(1)],
+      contextExamples,
+      sourceUrl: url,
+      pages: [url]
     });
   });
 
-  return topics.slice(0, 6); // Limit to 6 main topics
+  return topics.slice(0, 8); // Increased to 8 main topics
 };
 
 const detectPageType = (url, title, headings, content) => {
@@ -592,17 +674,9 @@ const performSemanticAnalysis = async (url, onProgress) => {
           });
         }
 
-        // Analyze the page content
-        const topics = analyzeTopics(pageContent);
-        const entities = extractEntities(pageContent.text);
-        const seoMetrics = analyzeSEO(pageContent, currentUrl);
-
         pages.push({
           url: currentUrl,
           content: pageContent,
-          topics,
-          entities,
-          seoMetrics,
           crawledAt: new Date().toISOString()
         });
 
@@ -619,40 +693,91 @@ const performSemanticAnalysis = async (url, onProgress) => {
       throw new Error('No pages could be successfully crawled and analyzed');
     }
 
-    // Aggregate results across all pages
-    const allTopics = pages.flatMap(page => page.topics);
-    const allEntities = pages.flatMap(page => 
-      Array.isArray(page.entities) ? page.entities : 
-      Object.values(page.entities || {}).flat()
-    );
+    // Detect domain niche from all content
+    const allContent = pages.map(p => `${p.content.title} ${p.content.headings.join(' ')} ${p.content.text}`).join(' ');
+    const domainNiche = detectDomainNiche(allContent);
 
-    // Merge and deduplicate topics
+    // Analyze each page with domain context
+    pages.forEach(page => {
+      page.topics = analyzeTopics(page.content, page.url, domainNiche);
+      page.entities = extractEntities(page.content.text);
+      page.seoMetrics = analyzeSEO(page.content, page.url);
+    });
+
+    // Advanced topic aggregation with cross-page frequency tracking
     const topicMap = new Map();
+    const allTopics = pages.flatMap(page => page.topics);
+    
     allTopics.forEach(topic => {
       const existing = topicMap.get(topic.name);
       if (existing) {
+        // Aggregate frequency across pages
         existing.frequency += topic.frequency;
+        existing.totalMentions = (existing.totalMentions || existing.frequency) + topic.frequency;
         existing.relevance = Math.max(existing.relevance, topic.relevance);
-        existing.pages = [...new Set([...existing.pages, topic.url])];
+        existing.pages = [...new Set([...existing.pages, topic.sourceUrl])];
+        
+        // Merge context examples
+        if (topic.contextExamples && topic.contextExamples.length > 0) {
+          existing.contextExamples = [
+            ...(existing.contextExamples || []),
+            ...topic.contextExamples
+          ].slice(0, 4); // Keep best 4 examples
+        }
+        
+        // Merge related entities
+        existing.relatedEntities = [...new Set([
+          ...(existing.relatedEntities || []),
+          ...(topic.relatedEntities || [])
+        ])].slice(0, 10);
+        
       } else {
         topicMap.set(topic.name, {
           ...topic,
-          pages: [pages.find(p => p.topics.includes(topic))?.url].filter(Boolean)
+          totalMentions: topic.frequency,
+          pages: [topic.sourceUrl],
+          pageCount: 1,
+          domainRelevance: domainNiche.primary && topic.name.toLowerCase().includes(domainNiche.primary.toLowerCase()) ? topic.relevance + 10 : topic.relevance
         });
       }
     });
 
+    // Calculate cross-page frequency scores
+    Array.from(topicMap.values()).forEach(topic => {
+      topic.pageCount = topic.pages.length;
+      topic.avgFrequencyPerPage = topic.totalMentions / topic.pageCount;
+      topic.crossPageRelevance = Math.min(100, topic.relevance + (topic.pageCount > 1 ? topic.pageCount * 5 : 0));
+    });
+
     // Merge and categorize entities
+    const allEntities = pages.flatMap(page => 
+      Array.isArray(page.entities) ? page.entities : 
+      Object.values(page.entities || {}).flat()
+    );
+    
     const entityMap = new Map();
     allEntities.forEach(entity => {
       const entityName = typeof entity === 'string' ? entity : entity.name;
       if (entityMap.has(entityName)) {
         entityMap.get(entityName).count++;
+        entityMap.get(entityName).pages = [...new Set([
+          ...entityMap.get(entityName).pages,
+          pages.find(p => 
+            Array.isArray(p.entities) ? 
+            p.entities.some(e => (typeof e === 'string' ? e : e.name) === entityName) :
+            Object.values(p.entities || {}).flat().some(e => (typeof e === 'string' ? e : e.name) === entityName)
+          )?.url
+        ].filter(Boolean))];
       } else {
         entityMap.set(entityName, {
           name: entityName,
           count: 1,
-          confidence: typeof entity === 'object' ? entity.confidence : 0.8
+          confidence: typeof entity === 'object' ? entity.confidence : 0.8,
+          pages: [pages.find(p => 
+            Array.isArray(p.entities) ? 
+            p.entities.some(e => (typeof e === 'string' ? e : e.name) === entityName) :
+            Object.values(p.entities || {}).flat().some(e => (typeof e === 'string' ? e : e.name) === entityName)
+          )?.url].filter(Boolean)
         });
       }
     });
@@ -664,7 +789,7 @@ const performSemanticAnalysis = async (url, onProgress) => {
 
     // Generate comprehensive URL suggestions
     const topTopics = Array.from(topicMap.values())
-      .sort((a, b) => b.relevance - a.relevance)
+      .sort((a, b) => b.crossPageRelevance - a.crossPageRelevance)
       .slice(0, 10);
 
     const urlSuggestions = topTopics
@@ -685,9 +810,10 @@ const performSemanticAnalysis = async (url, onProgress) => {
     });
 
     return {
-      pages,
-      topics: Array.from(topicMap.values()),
-      entities: Array.from(entityMap.values()),
+pages,
+      topics: Array.from(topicMap.values()).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance),
+      entities: Array.from(entityMap.values()).sort((a, b) => b.count - a.count),
+      domainNiche,
       seoMetrics: {
         score: avgSeoScore,
         pageCount: pages.length,

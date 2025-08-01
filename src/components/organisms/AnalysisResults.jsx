@@ -229,70 +229,69 @@ const metrics = [
                   
 <div>
                     <h4 className="font-medium text-slate-300 mb-4">
-                      Named Entities {hasMultiplePages && <span className="text-xs text-slate-500">(Across all pages)</span>}
+                      Enhanced Topic Analysis {hasMultiplePages && <span className="text-xs text-slate-500">(Cross-page frequency tracking)</span>}
                     </h4>
                     <div className="space-y-4">
-                      {analysis.entities && typeof analysis.entities === 'object' && !Array.isArray(analysis.entities) ? (
-                        // New categorized entity format
-                        Object.entries(analysis.entities).map(([category, entities]) => {
-                          if (!entities || entities.length === 0) return null;
-                          
-                          const categoryColors = {
-                            people: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-                            organizations: 'bg-green-500/20 text-green-300 border-green-500/30',
-                            locations: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-                            technologies: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-                            products: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
-                            events: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-                            misc: 'bg-secondary/20 text-secondary border-secondary/30'
-                          };
-
-                          return (
-                            <div key={category} className="space-y-2">
-                              <h5 className="text-sm font-medium text-slate-400 capitalize">
-                                {category} ({entities.length})
-                              </h5>
-                              <div className="flex flex-wrap gap-2">
-                                {entities.slice(0, 8).map((entity, index) => (
-                                  <span 
-                                    key={index}
-                                    className={`px-3 py-1 rounded-full text-sm border ${categoryColors[category] || categoryColors.misc}`}
-                                    title={`Confidence: ${Math.round((entity.confidence || entity.count || 0.5) * 100)}%`}
-                                  >
-                                    {typeof entity === 'string' ? entity : entity.name}
-                                    {(entity.confidence || entity.count) && (
-                                      <span className="ml-1 text-xs opacity-75">
-                                        {entity.count ? `×${entity.count}` : `${Math.round(entity.confidence * 100)}%`}
-                                      </span>
-                                    )}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        // Handle array format (both legacy and new multi-page)
-                        <div className="space-y-2">
-                          <h5 className="text-sm font-medium text-slate-400">
-                            Entities ({(analysis.entities || []).length})
-                          </h5>
-                          <div className="flex flex-wrap gap-2">
-                            {(analysis.entities || []).slice(0, 12).map((entity, index) => (
-                              <span 
-                                key={index}
-                                className="px-3 py-1 bg-secondary/20 text-secondary border border-secondary/30 rounded-full text-sm"
-                                title={entity.count ? `Found ${entity.count} times` : undefined}
-                              >
-                                {typeof entity === 'string' ? entity : entity.name}
-                                {entity.count && entity.count > 1 && (
-                                  <span className="ml-1 text-xs opacity-75">×{entity.count}</span>
-                                )}
-                              </span>
-                            ))}
+                      {analysis.domainNiche && (
+                        <div className="p-3 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <ApperIcon name="Target" className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">Detected Domain Niche</span>
                           </div>
+                          <p className="text-white font-semibold">{analysis.domainNiche.primary}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Topics are ranked by relevance to this domain for better insights
+                          </p>
                         </div>
                       )}
+                      
+                      <div className="grid grid-cols-1 gap-3">
+                        {analysis.topics.slice(0, 6).map((topic, index) => (
+                          <div key={index} className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-white">{topic.name}</h5>
+                                <div className="flex items-center space-x-4 mt-1 text-sm text-slate-400">
+                                  <span>{topic.totalMentions || topic.frequency} mentions</span>
+                                  {topic.pageCount > 1 && (
+                                    <span>• {topic.pageCount} pages • Avg: {Math.round(topic.avgFrequencyPerPage || topic.frequency)}/page</span>
+                                  )}
+                                  <span>• {topic.crossPageRelevance || topic.relevance}% relevance</span>
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0 w-16 bg-slate-700 rounded-full h-2 ml-4">
+                                <div 
+                                  className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
+                                  style={{ width: `${topic.crossPageRelevance || topic.relevance}%` }}
+                                />
+                              </div>
+                            </div>
+                            
+                            {topic.contextExamples && topic.contextExamples.length > 0 && (
+                              <div className="space-y-2">
+                                <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wide">Context Examples</h6>
+                                {topic.contextExamples.slice(0, 2).map((context, contextIndex) => (
+                                  <div key={contextIndex} className="p-2 bg-slate-900 rounded text-xs text-slate-300 italic border-l-2 border-primary/30">
+                                    "{context}"
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {topic.relatedEntities && topic.relatedEntities.length > 0 && (
+                              <div className="mt-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {topic.relatedEntities.slice(0, 5).map((entity, entityIndex) => (
+                                    <span key={entityIndex} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
+                                      {entity}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
