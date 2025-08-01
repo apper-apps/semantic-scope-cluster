@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import AnalysisResults from "@/components/organisms/AnalysisResults";
 import Loading from "@/components/ui/Loading";
-import Error from "@/components/ui/Error";
+import ErrorComponent from "@/components/ui/Error";
 import { analysisService } from "@/services/api/analysisService";
 
 const AnalysisPage = () => {
@@ -94,11 +94,11 @@ const handleRetry = async () => {
     );
   }
 
-  if (error) {
+if (error) {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-7xl mx-auto py-8">
-          <Error 
+          <ErrorComponent 
             error={error} 
             onRetry={analysis ? handleRetry : undefined}
             title="Failed to Load Analysis"
@@ -108,11 +108,11 @@ const handleRetry = async () => {
     );
   }
 
-  if (!analysis) {
+if (!analysis) {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-7xl mx-auto py-8">
-          <Error 
+          <ErrorComponent 
             error="Analysis not found" 
             onRetry={handleGoHome}
             title="Analysis Not Found"

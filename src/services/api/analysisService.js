@@ -1,6 +1,6 @@
-import mockAnalyses from "@/services/mockData/analyses.json";
-import React from "react";
-import Error from "@/components/ui/Error";
+import mockAnalyses from '@/services/mockData/analyses.json'
+import React from 'react'
+import ErrorComponent from '@/components/ui/Error'
 // Optimized minimal delay for better performance
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
