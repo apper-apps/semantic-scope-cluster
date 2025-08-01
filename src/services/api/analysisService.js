@@ -945,27 +945,8 @@ const performSemanticAnalysis = async (url, onProgress) => {
               } else {
                 throw new Error(`Direct fetch failed: ${response.status}`);
               }
-            } catch (directError) {
+} catch (directError) {
               console.warn(`Both proxy and direct fetch failed for ${currentUrl}:`, directError.message);
-              
-              // Final fallback: Create minimal page data
-              if (currentUrl === url) {
-                // For main URL, ensure we have something to analyze
-                return {
-                  url: currentUrl,
-                  content: {
-                    title: 'Analysis Failed - Limited Data',
-                    description: 'Unable to fully crawl this page, analysis based on URL structure',
-                    headings: { h1: [], h2: [], h3: [] },
-                    content: `Analysis of ${currentUrl}`,
-                    wordCount: 10,
-                    links: { internal: [], external: [] },
-                    images: []
-                  },
-                  crawledAt: new Date().toISOString(),
-                  fallback: true
-                };
-              }
               return null;
             }
           }
@@ -989,30 +970,10 @@ const performSemanticAnalysis = async (url, onProgress) => {
             doc: pages.length === 0 ? doc : null // Keep doc for first page link extraction
           };
         } catch (error) {
-          console.warn(`Error processing ${currentUrl}:`, error.message);
-          
-          // Ensure main URL always has some data
-          if (currentUrl === url && pages.length === 0) {
-            return {
-              url: currentUrl,
-              content: {
-                title: 'Analysis Failed',
-                description: 'Unable to crawl this page',
-                headings: { h1: [], h2: [], h3: [] },
-                content: '',
-                wordCount: 0,
-                links: { internal: [], external: [] },
-                images: []
-              },
-              crawledAt: new Date().toISOString(),
-              error: error.message,
-              fallback: true
-            };
-          }
+          console.error('Error processing page:', currentUrl, error);
           return null;
         }
       });
-      
       return Promise.all(promises);
     };
     
@@ -1045,207 +1006,119 @@ const performSemanticAnalysis = async (url, onProgress) => {
 
       validResults.forEach(result => {
         if (result) {
-          delete result.doc; // Clean up doc reference
+delete result.doc; // Clean up doc reference
           pages.push(result);
         }
       });
-
-      // Reduced delay for better performance
-      if (urlQueue.length > 0 && pages.length < maxPages) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Small delay between batches
+      if (urlQueue.length > 0) {
+        await delay(100);
       }
     }
-
-    // Enhanced error handling - ensure we always have at least one page
-    if (pages.length === 0) {
-      // Create a minimal analysis based on the URL
-      const fallbackPage = {
-        url,
-        content: {
-          title: `Analysis of ${url}`,
-          description: 'Limited analysis - unable to crawl content',
-          headings: { h1: [], h2: [], h3: [] },
-          content: `Fallback analysis for ${url}. The page could not be crawled due to CORS restrictions or network issues.`,
-          wordCount: 20,
-          links: { internal: [], external: [] },
-          images: []
-        },
-        crawledAt: new Date().toISOString(),
-        fallback: true,
-        error: 'Crawling failed - using fallback analysis'
-      };
-      
-      pages.push(fallbackPage);
-      console.warn('Using fallback analysis due to crawling failures');
-    }
-
-    // Detect domain niche from all content
-    const allContent = pages.map(p => `${p.content.title} ${p.content.headings.join(' ')} ${p.content.text}`).join(' ');
-    const domainNiche = detectDomainNiche(allContent);
-// Analyze each page with domain context
-    pages.forEach(page => {
-      page.topics = analyzeTopics(page.content, page.url, [], domainNiche);
-      
-      // Extract and aggregate entities across pages
-      page.entities = page.topics.reduce((allEntities, topic) => {
-        if (topic.entities) {
-          Object.entries(topic.entities).forEach(([category, entities]) => {
-            if (!allEntities[category]) allEntities[category] = [];
-            entities.forEach(entity => {
-              if (!allEntities[category].includes(entity)) {
-                allEntities[category].push(entity);
-              }
-            });
-          });
-        }
-        return allEntities;
-      }, {});
-      page.entities = extractEntities(page.content.text);
-      page.seoMetrics = analyzeSEO(page.content, page.url);
-    });
-
-    // Generate cross-page topic analysis and semantic clusters
-    const allTopics = pages.flatMap(page => page.topics);
-    const topicFrequencyMap = new Map();
     
-    // Aggregate topic data across pages
-    allTopics.forEach(topic => {
-      const key = topic.name.toLowerCase();
-if (!topicFrequencyMap.has(key)) {
-        topicFrequencyMap.set(key, {
-          name: topic.name,
-          totalMentions: 0,
-          pageCount: 0,
-          relevanceScores: [],
-          contextExamples: [],
-          relatedEntities: new Set(),
-          entities: { PERSON: new Set(), ORGANIZATION: new Set(), PRODUCT: new Set(), LOCATION: new Set(), OTHER: new Set() },
-          entityFrequency: { PERSON: {}, ORGANIZATION: {}, PRODUCT: {}, LOCATION: {}, OTHER: {} }
-        });
-      }
-      
-      const aggregated = topicFrequencyMap.get(key);
-      aggregated.totalMentions += topic.frequency || 0;
-      aggregated.pageCount += 1;
-      aggregated.relevanceScores.push(topic.relevance || 0);
-if (topic.contextExamples) aggregated.contextExamples.push(...topic.contextExamples);
-      if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
-      
-      // Aggregate categorized entities
-      if (topic.entities) {
-        Object.entries(topic.entities).forEach(([category, entities]) => {
-          entities.forEach(entity => aggregated.entities[category].add(entity));
-        });
-      }
-      
-      // Aggregate entity frequencies
-      if (topic.entityFrequency) {
-        Object.entries(topic.entityFrequency).forEach(([category, frequencies]) => {
-          Object.entries(frequencies).forEach(([entity, freq]) => {
-            aggregated.entityFrequency[category][entity] = (aggregated.entityFrequency[category][entity] || 0) + freq;
-          });
-        });
-      }
-    });
-
-// Convert aggregated data to final topic list
-    const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
-      ...topic,
-      frequency: topic.totalMentions,
-      avgFrequencyPerPage: Math.round(topic.totalMentions / topic.pageCount),
-      crossPageRelevance: Math.round(topic.relevanceScores.reduce((a, b) => a + b, 0) / topic.relevanceScores.length),
-      contextExamples: topic.contextExamples.slice(0, 4),
-      relatedEntities: Array.from(topic.relatedEntities).slice(0, 6),
-      // Convert entity Sets to Arrays for final output
-      entities: Object.fromEntries(
-        Object.entries(topic.entities).map(([category, entitySet]) => [
-          category,
-          Array.from(entitySet)
-        ])
-      ),
-      entityFrequency: topic.entityFrequency
-    })).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance);
-
-// Generate semantic clusters
-    const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
-// Calculate cross-page frequency scores - fix null reference
-    consolidatedTopics.forEach(topic => {
-      // Ensure topic has required properties
-      const pageCount = topic.pageCount || 1;
-      const totalMentions = topic.totalMentions || topic.frequency || 0;
-      const relevanceScores = topic.relevanceScores || [];
-      
-      topic.pageCount = pageCount;
-      topic.avgFrequencyPerPage = pageCount > 0 ? Math.round(totalMentions / pageCount) : 0;
-      topic.crossPageRelevance = relevanceScores.length > 0 
-        ? Math.min(100, Math.round(relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length) + (pageCount > 1 ? pageCount * 5 : 0))
-        : Math.min(100, (topic.relevance || 0) + (pageCount > 1 ? pageCount * 5 : 0));
-    });
-
-// Merge and categorize entities
-    // Optimized entity processing with efficient data structures
-    const entityMap = new Map();
-    const pageUrlMap = new Map(); // Cache page lookups
-    
-    pages.forEach((page, index) => {
-      pageUrlMap.set(page.url, index);
-      const pageEntities = Array.isArray(page.entities) ? page.entities : 
-                          Object.values(page.entities || {}).flat();
-      
-      pageEntities.forEach(entity => {
-        const entityName = typeof entity === 'string' ? entity : entity.name;
-        
-        if (entityMap.has(entityName)) {
-          const existing = entityMap.get(entityName);
-          existing.count++;
-          existing.pages.add(page.url);
-        } else {
-          entityMap.set(entityName, {
-            name: entityName,
-            count: 1,
-            confidence: typeof entity === 'object' ? entity.confidence : 0.8,
-            pages: new Set([page.url])
-          });
-        }
+    // Progress update
+    if (onProgress) {
+      onProgress({
+        current: pages.length,
+        total: pages.length,
+        status: 'analyzing'
       });
+    }
+    
+    // Detect domain niche from all content
+const allContent = pages.map(p => `${p.content?.title || ''} ${(p.content?.headings || []).join(' ')} ${p.content?.text || ''}`).join(' ');
+    const domainNiche = detectDomainNiche(allContent);
+    
+    // Extract keywords from all content
+    const keywords = extractKeywords(allContent);
+    
+    // Perform comprehensive topic analysis across all pages
+    const comprehensiveTopics = [];
+    pages.forEach(page => {
+      if (page.content) {
+        const pageTopics = analyzeTopics(page.content, page.url, keywords, domainNiche);
+        comprehensiveTopics.push(...pageTopics);
+      }
     });
     
-    // Convert Set to Array for final output
-    entityMap.forEach(entity => {
-      entity.pages = Array.from(entity.pages);
+    // Aggregate cross-page topics
+    const topicMap = new Map();
+    comprehensiveTopics.forEach(topic => {
+      const key = topic.name.toLowerCase();
+      if (topicMap.has(key)) {
+        const existing = topicMap.get(key);
+        existing.frequency += topic.frequency;
+        existing.totalMentions += topic.frequency;
+        existing.pageCount += 1;
+        existing.pages.push(...(topic.pages || []));
+        existing.contextExamples.push(...(topic.contextExamples || []));
+      } else {
+        topicMap.set(key, {
+          ...topic,
+          totalMentions: topic.frequency,
+          pageCount: 1,
+          pages: topic.pages || []
+        });
+      }
     });
-    // Calculate overall SEO score
-    const avgSeoScore = Math.round(
-      pages.reduce((sum, page) => sum + page.seoMetrics.score, 0) / pages.length
-    );
-// Generate comprehensive URL suggestions
-    const topTopics = consolidatedTopics.slice(0, 10);
-    const urlSuggestions = topTopics
+    
+    const consolidatedTopics = Array.from(topicMap.values())
+      .sort((a, b) => b.totalMentions - a.totalMentions)
+      .slice(0, 20);
+    
+    // Generate semantic clusters
+    const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
+// Extract and merge entities from all pages
+    const allEntities = [];
+    pages.forEach(page => {
+      if (page.content) {
+        const pageEntities = extractEntities(page.content.text);
+        Object.values(pageEntities).forEach(entityArray => {
+          entityArray.forEach(entity => {
+            entity.sourceUrl = page.url;
+            allEntities.push(entity);
+          });
+        });
+      }
+    });
+    
+    // Calculate overall SEO metrics
+    const seoScores = pages.map(page => {
+      if (page.content) {
+        return analyzeSEO(page.content, page.url);
+      }
+      return { score: 0, issues: [], recommendations: [] };
+    });
+    
+    const avgSeoScore = seoScores.length > 0 
+      ? Math.round(seoScores.reduce((sum, seo) => sum + seo.score, 0) / seoScores.length)
+      : 0;
+    
+    // Generate URL suggestions
+    const urlSuggestions = consolidatedTopics
+      .slice(0, 10)
       .map(topic => topic.name.toLowerCase().replace(/\s+/g, '-'))
-      .concat(
-        pages.map(page => {
-          const pathParts = new URL(page.url).pathname.split('/').filter(Boolean);
-          return pathParts.join('/');
-        }).filter(Boolean)
-      )
       .slice(0, 15);
-
+    
     // Page type summary
     const pageTypes = {};
     pages.forEach(page => {
-      const type = page.seoMetrics.pageType;
+      const type = detectPageType(page.url, page.content?.title || '', page.content?.headings || [], page.content?.text || '');
       pageTypes[type] = (pageTypes[type] || 0) + 1;
     });
-return {
-      pages,
+    
+    return {
+pages,
       topics: consolidatedTopics,
-      entities: Array.from(entityMap.values()).sort((a, b) => b.count - a.count),
+      entities: allEntities,
+      semanticClusters,
       domainNiche,
       seoMetrics: {
         score: avgSeoScore,
         pageCount: pages.length,
         pageTypes,
-        issues: pages.flatMap(page => page.seoMetrics.issues),
+        issues: seoScores.flatMap(seo => seo.issues || []),
         recommendations: [
           'Optimize page titles and meta descriptions across all pages',
           'Implement consistent heading hierarchy site-wide',
@@ -1263,7 +1136,6 @@ return {
         pageTypes
       }
     };
-
   } catch (error) {
     console.error('Multi-page analysis error:', error);
     throw new Error(`Unable to crawl and analyze website: ${error.message}`);
@@ -1340,9 +1212,11 @@ await delay(100); // Optimized delay for better performance
           headings: [],
           text: input
         };
-
-// Perform topic analysis on text
-        const topics = analyzeTopics(content, '', []);
+// Extract keywords from text
+        const keywords = extractKeywords(input);
+        
+        // Perform topic analysis on text
+        const topics = analyzeTopics(content, '', keywords);
         // Enhanced entity extraction with categorization
         const entities = extractEntities(input);
         
@@ -1402,9 +1276,15 @@ async analyzeUrlOriginal(url) {
       throw new Error("Invalid URL format. Please include http:// or https://");
     }
 
-    try {
-// Perform real semantic analysis
-      const analysisResults = await performSemanticAnalysis(url);
+try {
+      // Progress tracking for URL analysis
+      let crawlProgress = null;
+      const onProgress = (progress) => {
+        crawlProgress = progress;
+      };
+
+      // Perform real semantic analysis
+      const analysisResults = await performSemanticAnalysis(url, onProgress);
       
       // Create new analysis record
       const newAnalysis = {
