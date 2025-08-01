@@ -16,9 +16,10 @@ const AnalysisResults = ({ analysis, onRetry }) => {
 
   if (!analysis) return null;
 
-  const tabs = [
+const tabs = [
     { id: "overview", label: "Overview", icon: "BarChart3" },
     { id: "topics", label: "Topic Analysis", icon: "Brain" },
+    { id: "clusters", label: "Semantic Clusters", icon: "Network" },
     { id: "urls", label: "URL Structure", icon: "Link" },
     { id: "seo", label: "SEO Audit", icon: "Search" }
   ];
@@ -299,8 +300,140 @@ const metrics = [
             </div>
           )}
 
-          {activeTab === "topics" && (
+{activeTab === "topics" && (
             <TopicHierarchy topics={analysis.topics} />
+          )}
+
+          {activeTab === "clusters" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Semantic Topic Clusters</h3>
+                  <p className="text-slate-400">Topics grouped by semantic similarity for strategic content planning</p>
+                </div>
+                {analysis.domainNiche && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+                    <ApperIcon name="Target" className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-primary font-medium">{analysis.domainNiche.primary}</span>
+                  </div>
+                )}
+              </div>
+
+              {analysis.semanticClusters && analysis.semanticClusters.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {analysis.semanticClusters.map((cluster, index) => (
+                    <motion.div
+                      key={cluster.name}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-semibold text-white mb-1">{cluster.name}</h4>
+                          <div className="flex items-center space-x-4 text-sm text-slate-400">
+                            <span>{cluster.topicCount} topics</span>
+                            <span>•</span>
+                            <span>{cluster.totalMentions} mentions</span>
+                            {cluster.pageSpread > 1 && (
+                              <>
+                                <span>•</span>
+                                <span>{cluster.pageSpread} pages</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-primary">{cluster.avgRelevance}%</div>
+                            <div className="text-xs text-slate-500">Relevance</div>
+                          </div>
+                          <div className="w-12 bg-slate-700 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${cluster.avgRelevance}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Top Topics in Cluster */}
+                        <div>
+                          <h5 className="text-sm font-medium text-slate-300 mb-2">Key Topics</h5>
+                          <div className="space-y-2">
+                            {cluster.topics.slice(0, 3).map((topic, topicIndex) => (
+                              <div key={topicIndex} className="flex items-center justify-between p-2 bg-slate-900 rounded-lg">
+                                <span className="text-white text-sm">{topic.name}</span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xs text-slate-400">{topic.frequency} mentions</span>
+                                  <div className="w-8 bg-slate-700 rounded-full h-1">
+                                    <div 
+                                      className="bg-primary h-1 rounded-full"
+                                      style={{ width: `${(topic.frequency / cluster.totalMentions) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Context Examples */}
+                        {cluster.contextExamples && cluster.contextExamples.length > 0 && (
+                          <div>
+                            <h5 className="text-sm font-medium text-slate-300 mb-2">Context Examples</h5>
+                            <div className="space-y-2">
+                              {cluster.contextExamples.slice(0, 2).map((context, contextIndex) => (
+                                <div key={contextIndex} className="p-2 bg-slate-900 rounded text-xs text-slate-300 italic border-l-2 border-primary/30">
+                                  "{context}"
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Related Entities */}
+                        {cluster.uniqueEntities && cluster.uniqueEntities.length > 0 && (
+                          <div>
+                            <h5 className="text-sm font-medium text-slate-300 mb-2">Related Entities</h5>
+                            <div className="flex flex-wrap gap-1">
+                              {cluster.uniqueEntities.slice(0, 6).map((entity, entityIndex) => (
+                                <span key={entityIndex} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
+                                  {entity}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Content Planning Insights */}
+                        <div className="pt-3 border-t border-slate-700">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <ApperIcon name="Lightbulb" className="w-4 h-4 text-warning" />
+                            <h5 className="text-sm font-medium text-warning">Content Planning Insight</h5>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {cluster.dominanceScore > 80 
+                              ? `High-opportunity cluster - consider creating pillar content around ${cluster.name.toLowerCase()} topics`
+                              : cluster.dominanceScore > 50
+                              ? `Moderate presence - could expand content in ${cluster.name.toLowerCase()} area`
+                              : `Emerging theme - monitor ${cluster.name.toLowerCase()} topics for growth potential`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-400">
+                  <ApperIcon name="Network" className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No semantic clusters available for this analysis</p>
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === "urls" && (

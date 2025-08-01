@@ -1,5 +1,4 @@
 import mockAnalyses from "@/services/mockData/analyses.json";
-
 // Simulate network delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -259,9 +258,10 @@ const analyzeTopics = (content, url, domainNiche = null) => {
       
       const subtopics = matchingKeywords.slice(0, 3).map(({ word, frequency }) => ({
         name: word.charAt(0).toUpperCase() + word.slice(1),
-        frequency,
+frequency,
         relevance: Math.min(90, baseRelevance - 10 + Math.random() * 20),
-        relatedEntities: matchingKeywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1))
+        relatedEntities: matchingKeywords.slice(0, 3).map(k => k.word.charAt(0).toUpperCase() + k.word.slice(1)),
+        contextExamples: extractTopicContext(topicName, content.text, 3)
       }));
 
       topics.push({
@@ -286,15 +286,100 @@ const analyzeTopics = (content, url, domainNiche = null) => {
       name: word.charAt(0).toUpperCase() + word.slice(1),
       frequency,
       relevance: Math.min(85, 40 + frequency * 2),
-      subtopics: [],
+subtopics: [],
       relatedEntities: [word.charAt(0).toUpperCase() + word.slice(1)],
-      contextExamples,
+      contextExamples: extractTopicContext(word, content.text, 2),
       sourceUrl: url,
       pages: [url]
     });
   });
 
   return topics.slice(0, 8); // Increased to 8 main topics
+};
+
+// Generate semantic clusters from topics
+const generateSemanticClusters = (allTopics, domainNiche) => {
+  const clusters = new Map();
+  
+  // Define semantic relationships based on common domain patterns
+  const semanticGroups = {
+    'Technology': ['artificial intelligence', 'machine learning', 'web development', 'programming', 'software', 'tech', 'digital', 'automation', 'ai', 'development'],
+    'Marketing': ['marketing', 'advertising', 'content', 'seo', 'social media', 'brand', 'campaign', 'promotion', 'engagement', 'conversion'],
+    'Business': ['business', 'strategy', 'management', 'growth', 'revenue', 'sales', 'enterprise', 'corporate', 'leadership', 'innovation'],
+    'Content Creation': ['content', 'writing', 'copywriting', 'blogging', 'editorial', 'publishing', 'media', 'storytelling', 'creative'],
+    'Analytics & Metrics': ['analytics', 'metrics', 'data', 'tracking', 'measurement', 'performance', 'insights', 'reporting', 'kpi'],
+    'User Experience': ['user experience', 'ux', 'ui', 'design', 'interface', 'usability', 'accessibility', 'user journey', 'interaction']
+  };
+
+  // Group topics into semantic clusters
+  allTopics.forEach(topic => {
+    let assigned = false;
+    const topicLower = topic.name.toLowerCase();
+    
+    for (const [groupName, keywords] of Object.entries(semanticGroups)) {
+      if (keywords.some(keyword => topicLower.includes(keyword) || keyword.includes(topicLower))) {
+        if (!clusters.has(groupName)) {
+          clusters.set(groupName, {
+            name: groupName,
+            topics: [],
+            totalMentions: 0,
+            avgRelevance: 0,
+            uniqueEntities: new Set(),
+            pageSpread: new Set(),
+            contextExamples: []
+          });
+        }
+        
+        const cluster = clusters.get(groupName);
+        cluster.topics.push(topic);
+        cluster.totalMentions += topic.totalMentions || topic.frequency || 0;
+        cluster.uniqueEntities = new Set([...cluster.uniqueEntities, ...(topic.relatedEntities || [])]);
+        
+        if (topic.pageCount) cluster.pageSpread.add(topic.pageCount);
+        if (topic.contextExamples) cluster.contextExamples.push(...topic.contextExamples.slice(0, 1));
+        
+        assigned = true;
+        break;
+      }
+    }
+    
+    // Create 'Other' cluster for unassigned topics
+    if (!assigned) {
+      const otherCluster = 'Domain Specific';
+      if (!clusters.has(otherCluster)) {
+        clusters.set(otherCluster, {
+          name: otherCluster,
+          topics: [],
+          totalMentions: 0,
+          avgRelevance: 0,
+          uniqueEntities: new Set(),
+          pageSpread: new Set(),
+          contextExamples: []
+        });
+      }
+      
+      const cluster = clusters.get(otherCluster);
+      cluster.topics.push(topic);
+      cluster.totalMentions += topic.totalMentions || topic.frequency || 0;
+      cluster.uniqueEntities = new Set([...cluster.uniqueEntities, ...(topic.relatedEntities || [])]);
+      
+      if (topic.pageCount) cluster.pageSpread.add(topic.pageCount);
+      if (topic.contextExamples) cluster.contextExamples.push(...topic.contextExamples.slice(0, 1));
+    }
+  });
+
+  // Calculate cluster metrics and convert to array
+  return Array.from(clusters.values()).map(cluster => ({
+    ...cluster,
+    topicCount: cluster.topics.length,
+    avgRelevance: Math.round(cluster.topics.reduce((sum, t) => sum + (t.crossPageRelevance || t.relevance || 0), 0) / cluster.topics.length),
+    uniqueEntities: Array.from(cluster.uniqueEntities).slice(0, 10),
+    pageSpread: cluster.pageSpread.size,
+    contextExamples: cluster.contextExamples.slice(0, 3),
+    dominanceScore: cluster.totalMentions + (cluster.topics.length * 5) + (cluster.pageSpread.size * 3)
+  }))
+  .sort((a, b) => b.dominanceScore - a.dominanceScore)
+  .slice(0, 8); // Limit to top 8 clusters
 };
 
 const detectPageType = (url, title, headings, content) => {
@@ -696,51 +781,53 @@ const performSemanticAnalysis = async (url, onProgress) => {
     // Detect domain niche from all content
     const allContent = pages.map(p => `${p.content.title} ${p.content.headings.join(' ')} ${p.content.text}`).join(' ');
     const domainNiche = detectDomainNiche(allContent);
-
-    // Analyze each page with domain context
+// Analyze each page with domain context
     pages.forEach(page => {
       page.topics = analyzeTopics(page.content, page.url, domainNiche);
       page.entities = extractEntities(page.content.text);
       page.seoMetrics = analyzeSEO(page.content, page.url);
     });
 
-    // Advanced topic aggregation with cross-page frequency tracking
-    const topicMap = new Map();
+    // Generate cross-page topic analysis and semantic clusters
     const allTopics = pages.flatMap(page => page.topics);
+    const topicFrequencyMap = new Map();
     
+    // Aggregate topic data across pages
     allTopics.forEach(topic => {
-      const existing = topicMap.get(topic.name);
-      if (existing) {
-        // Aggregate frequency across pages
-        existing.frequency += topic.frequency;
-        existing.totalMentions = (existing.totalMentions || existing.frequency) + topic.frequency;
-        existing.relevance = Math.max(existing.relevance, topic.relevance);
-        existing.pages = [...new Set([...existing.pages, topic.sourceUrl])];
-        
-        // Merge context examples
-        if (topic.contextExamples && topic.contextExamples.length > 0) {
-          existing.contextExamples = [
-            ...(existing.contextExamples || []),
-            ...topic.contextExamples
-          ].slice(0, 4); // Keep best 4 examples
-        }
-        
-        // Merge related entities
-        existing.relatedEntities = [...new Set([
-          ...(existing.relatedEntities || []),
-          ...(topic.relatedEntities || [])
-        ])].slice(0, 10);
-        
-      } else {
-        topicMap.set(topic.name, {
-          ...topic,
-          totalMentions: topic.frequency,
-          pages: [topic.sourceUrl],
-          pageCount: 1,
-          domainRelevance: domainNiche.primary && topic.name.toLowerCase().includes(domainNiche.primary.toLowerCase()) ? topic.relevance + 10 : topic.relevance
+      const key = topic.name.toLowerCase();
+      if (!topicFrequencyMap.has(key)) {
+        topicFrequencyMap.set(key, {
+          name: topic.name,
+          totalMentions: 0,
+          pageCount: 0,
+          relevanceScores: [],
+          contextExamples: [],
+          relatedEntities: new Set()
         });
       }
+      
+      const aggregated = topicFrequencyMap.get(key);
+      aggregated.totalMentions += topic.frequency || 0;
+      aggregated.pageCount += 1;
+      aggregated.relevanceScores.push(topic.relevance || 0);
+      if (topic.contextExamples) aggregated.contextExamples.push(...topic.contextExamples);
+      if (topic.relatedEntities) topic.relatedEntities.forEach(entity => aggregated.relatedEntities.add(entity));
     });
+
+    // Convert aggregated data to final topic list
+    const consolidatedTopics = Array.from(topicFrequencyMap.values()).map(topic => ({
+      ...topic,
+      frequency: topic.totalMentions,
+      avgFrequencyPerPage: Math.round(topic.totalMentions / topic.pageCount),
+      crossPageRelevance: Math.round(topic.relevanceScores.reduce((a, b) => a + b, 0) / topic.relevanceScores.length),
+      contextExamples: topic.contextExamples.slice(0, 4),
+      relatedEntities: Array.from(topic.relatedEntities).slice(0, 6)
+    })).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance);
+
+    // Generate semantic clusters
+    const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
+
+// Use the already created consolidatedTopics instead of duplicating logic
 
     // Calculate cross-page frequency scores
     Array.from(topicMap.values()).forEach(topic => {
@@ -787,11 +874,8 @@ const performSemanticAnalysis = async (url, onProgress) => {
       pages.reduce((sum, page) => sum + page.seoMetrics.score, 0) / pages.length
     );
 
-    // Generate comprehensive URL suggestions
-    const topTopics = Array.from(topicMap.values())
-      .sort((a, b) => b.crossPageRelevance - a.crossPageRelevance)
-      .slice(0, 10);
-
+// Generate comprehensive URL suggestions
+    const topTopics = consolidatedTopics.slice(0, 10);
     const urlSuggestions = topTopics
       .map(topic => topic.name.toLowerCase().replace(/\s+/g, '-'))
       .concat(
@@ -809,9 +893,9 @@ const performSemanticAnalysis = async (url, onProgress) => {
       pageTypes[type] = (pageTypes[type] || 0) + 1;
     });
 
-    return {
-pages,
-      topics: Array.from(topicMap.values()).sort((a, b) => b.crossPageRelevance - a.crossPageRelevance),
+return {
+      pages,
+      topics: consolidatedTopics,
       entities: Array.from(entityMap.values()).sort((a, b) => b.count - a.count),
       domainNiche,
       seoMetrics: {

@@ -131,9 +131,86 @@
       "marketing/ai-automation",
       "seo/ai-optimization-tools",
       "content/ai-writing-assistants",
+"content/ai-writing-assistants",
       "digital-marketing/ai-strategies"
-    ]
-  },
+    ],
+    "semanticClusters": [
+      {
+        "name": "Technology",
+        "topicCount": 3,
+        "totalMentions": 88,
+        "avgRelevance": 85,
+        "dominanceScore": 103,
+        "pageSpread": 1,
+        "topics": [
+          {
+            "name": "Artificial Intelligence",
+            "frequency": 45,
+            "crossPageRelevance": 92,
+            "contextExamples": [
+              "AI-powered content tools are revolutionizing how we create and optimize digital content",
+              "Machine learning algorithms can now understand context and generate human-like text"
+            ]
+          },
+          {
+            "name": "Digital Transformation",
+            "frequency": 22,
+            "crossPageRelevance": 75,
+            "contextExamples": [
+              "Business process automation is driving digital transformation across industries"
+            ]
+          },
+          {
+            "name": "Marketing Automation",
+            "frequency": 21,
+            "crossPageRelevance": 79,
+            "contextExamples": [
+              "Email marketing automation sequences help nurture leads effectively"
+            ]
+          }
+        ],
+        "uniqueEntities": ["OpenAI", "ChatGPT", "GPT-4", "TensorFlow", "Neural Networks", "Cloud Computing"],
+        "contextExamples": [
+          "AI-powered content tools are revolutionizing how we create and optimize digital content",
+          "Machine learning algorithms can now understand context and generate human-like text",
+          "Business process automation is driving digital transformation across industries"
+        ]
+      },
+      {
+        "name": "Marketing",
+        "topicCount": 2,
+        "totalMentions": 69,
+        "avgRelevance": 86,
+        "dominanceScore": 79,
+        "pageSpread": 1,
+        "topics": [
+          {
+            "name": "Content Creation",
+            "frequency": 38,
+            "crossPageRelevance": 88,
+            "contextExamples": [
+              "Effective copywriting requires understanding your audience and crafting compelling messages",
+              "Blog writing strategies focus on SEO optimization and reader engagement"
+            ]
+          },
+          {
+            "name": "SEO Tools",
+            "frequency": 31,
+            "crossPageRelevance": 84,
+            "contextExamples": [
+              "Keyword research tools like SEMrush and Ahrefs provide competitive insights",
+              "Content optimization involves meta tags, schema markup, and internal linking"
+            ]
+          }
+        ],
+        "uniqueEntities": ["Content Marketing", "Digital Marketing", "SEO Writing", "Google Keyword Planner", "SEMrush", "Ahrefs"],
+        "contextExamples": [
+          "Effective copywriting requires understanding your audience and crafting compelling messages",
+          "Keyword research tools like SEMrush and Ahrefs provide competitive insights",
+          "Content optimization involves meta tags, schema markup, and internal linking"
+        ]
+      }
+    ]},
   {
     "id": 2,
     "url": "https://techblog.example.com/web-development-trends",
