@@ -713,23 +713,73 @@ const performSemanticAnalysis = async (url, onProgress) => {
     // Start with the main URL
     const urlQueue = [url];
     
-    // Batch processing for better performance
+    // Enhanced batch processing with fallback mechanisms
     const processBatch = async (urls) => {
       const promises = urls.map(async (currentUrl) => {
         if (crawledUrls.has(currentUrl)) return null;
         crawledUrls.add(currentUrl);
         
         try {
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(currentUrl)}`;
-          const response = await fetch(proxyUrl);
+          // Primary attempt with proxy
+          let response, html;
           
-          if (!response.ok) {
-            console.warn(`Failed to fetch ${currentUrl}: ${response.status}`);
-            return null;
+          try {
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(currentUrl)}`;
+            response = await fetch(proxyUrl, { timeout: 10000 });
+            
+            if (response.ok) {
+              const data = await response.json();
+              html = data.contents;
+            } else {
+              throw new Error(`Proxy failed: ${response.status}`);
+            }
+          } catch (proxyError) {
+            console.warn(`Proxy failed for ${currentUrl}, attempting direct fetch:`, proxyError.message);
+            
+            // Fallback: Direct fetch attempt
+            try {
+              response = await fetch(currentUrl, { 
+                mode: 'cors',
+                timeout: 8000,
+                headers: {
+                  'User-Agent': 'SemanticScope/1.0'
+                }
+              });
+              
+              if (response.ok) {
+                html = await response.text();
+              } else {
+                throw new Error(`Direct fetch failed: ${response.status}`);
+              }
+            } catch (directError) {
+              console.warn(`Both proxy and direct fetch failed for ${currentUrl}:`, directError.message);
+              
+              // Final fallback: Create minimal page data
+              if (currentUrl === url) {
+                // For main URL, ensure we have something to analyze
+                return {
+                  url: currentUrl,
+                  content: {
+                    title: 'Analysis Failed - Limited Data',
+                    description: 'Unable to fully crawl this page, analysis based on URL structure',
+                    headings: { h1: [], h2: [], h3: [] },
+                    content: `Analysis of ${currentUrl}`,
+                    wordCount: 10,
+                    links: { internal: [], external: [] },
+                    images: []
+                  },
+                  crawledAt: new Date().toISOString(),
+                  fallback: true
+                };
+              }
+              return null;
+            }
           }
 
-          const data = await response.json();
-          const html = data.contents;
+          if (!html) {
+            console.warn(`No HTML content received for ${currentUrl}`);
+            return null;
+          }
 
           // Parse HTML content
           const parser = new DOMParser();
@@ -742,10 +792,29 @@ const performSemanticAnalysis = async (url, onProgress) => {
             url: currentUrl,
             content: pageContent,
             crawledAt: new Date().toISOString(),
-            doc: currentPage === 0 ? doc : null // Keep doc for first page link extraction
+            doc: pages.length === 0 ? doc : null // Keep doc for first page link extraction
           };
         } catch (error) {
           console.warn(`Error processing ${currentUrl}:`, error.message);
+          
+          // Ensure main URL always has some data
+          if (currentUrl === url && pages.length === 0) {
+            return {
+              url: currentUrl,
+              content: {
+                title: 'Analysis Failed',
+                description: 'Unable to crawl this page',
+                headings: { h1: [], h2: [], h3: [] },
+                content: '',
+                wordCount: 0,
+                links: { internal: [], external: [] },
+                images: []
+              },
+              crawledAt: new Date().toISOString(),
+              error: error.message,
+              fallback: true
+            };
+          }
           return null;
         }
       });
@@ -757,13 +826,11 @@ const performSemanticAnalysis = async (url, onProgress) => {
       const batchSize = Math.min(3, urlQueue.length, maxPages - pages.length);
       const batch = urlQueue.splice(0, batchSize);
       
-      currentPage += batch.length;
-      
-      // Progress callback for UI updates
+      // Progress callback for UI updates (fixed calculation)
       if (onProgress) {
         onProgress({
-          current: currentPage,
-          total: Math.min(urlQueue.length + currentPage + 5, maxPages),
+          current: pages.length,
+          total: Math.min(urlQueue.length + pages.length + batch.length + 5, maxPages),
           url: batch[0],
           status: 'crawling'
         });
@@ -773,7 +840,7 @@ const performSemanticAnalysis = async (url, onProgress) => {
       const validResults = results.filter(Boolean);
       
       // Find additional pages to crawl (only from homepage initially)
-      if (pages.length === 0 && validResults.length > 0 && validResults[0].doc) {
+      if (pages.length === 0 && validResults.length > 0 && validResults[0].doc && !validResults[0].fallback) {
         const linkedPages = findLinkedPages(validResults[0].doc, url, maxPages - 1);
         linkedPages.forEach(linkedUrl => {
           if (!crawledUrls.has(linkedUrl) && urlQueue.length + pages.length < maxPages) {
@@ -790,13 +857,32 @@ const performSemanticAnalysis = async (url, onProgress) => {
       });
 
       // Reduced delay for better performance
-      if (urlQueue.length > 0) {
+      if (urlQueue.length > 0 && pages.length < maxPages) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
+    // Enhanced error handling - ensure we always have at least one page
     if (pages.length === 0) {
-      throw new Error('No pages could be successfully crawled and analyzed');
+      // Create a minimal analysis based on the URL
+      const fallbackPage = {
+        url,
+        content: {
+          title: `Analysis of ${url}`,
+          description: 'Limited analysis - unable to crawl content',
+          headings: { h1: [], h2: [], h3: [] },
+          content: `Fallback analysis for ${url}. The page could not be crawled due to CORS restrictions or network issues.`,
+          wordCount: 20,
+          links: { internal: [], external: [] },
+          images: []
+        },
+        crawledAt: new Date().toISOString(),
+        fallback: true,
+        error: 'Crawling failed - using fallback analysis'
+      };
+      
+      pages.push(fallbackPage);
+      console.warn('Using fallback analysis due to crawling failures');
     }
 
     // Detect domain niche from all content
@@ -848,13 +934,18 @@ const performSemanticAnalysis = async (url, onProgress) => {
 // Generate semantic clusters
     const semanticClusters = generateSemanticClusters(consolidatedTopics, domainNiche);
 
-    // Calculate cross-page frequency scores
+// Calculate cross-page frequency scores - fix null reference
     consolidatedTopics.forEach(topic => {
-// Optimized calculations with memoization
-      const pageCount = topic.pages.length;
+      // Ensure topic has required properties
+      const pageCount = topic.pageCount || 1;
+      const totalMentions = topic.totalMentions || topic.frequency || 0;
+      const relevanceScores = topic.relevanceScores || [];
+      
       topic.pageCount = pageCount;
-      topic.avgFrequencyPerPage = topic.totalMentions / pageCount;
-      topic.crossPageRelevance = Math.min(100, topic.relevance + (pageCount > 1 ? pageCount * 5 : 0));
+      topic.avgFrequencyPerPage = pageCount > 0 ? Math.round(totalMentions / pageCount) : 0;
+      topic.crossPageRelevance = relevanceScores.length > 0 
+        ? Math.min(100, Math.round(relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length) + (pageCount > 1 ? pageCount * 5 : 0))
+        : Math.min(100, (topic.relevance || 0) + (pageCount > 1 ? pageCount * 5 : 0));
     });
 
     // Merge and categorize entities

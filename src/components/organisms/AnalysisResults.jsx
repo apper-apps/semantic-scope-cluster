@@ -126,9 +126,9 @@ const AnalysisResults = ({ analysis, onRetry }) => {
         <div className="flex flex-col lg:flex-row items-center lg:items-start space-y-6 lg:space-y-0 lg:space-x-8">
           <div className="flex-shrink-0">
             <ProgressRing
-              progress={analysis.seoMetrics.score}
+              progress={analysis?.seoMetrics?.score || 0}
               size={160}
-              color={analysis.seoMetrics.score >= 80 ? "#22C55E" : analysis.seoMetrics.score >= 60 ? "#F59E0B" : "#EF4444"}
+              color={(analysis?.seoMetrics?.score || 0) >= 80 ? "#22C55E" : (analysis?.seoMetrics?.score || 0) >= 60 ? "#F59E0B" : "#EF4444"}
               label={hasMultiplePages ? "Average SEO" : "SEO Health"}
             />
           </div>
@@ -137,11 +137,11 @@ const AnalysisResults = ({ analysis, onRetry }) => {
             <div>
               <h3 className="text-lg font-semibold text-white mb-2">
                 {hasMultiplePages ? "Multi-Page SEO Analysis" : "SEO Performance Summary"}
-              </h3>
+</h3>
               <p className="text-slate-400">
                 {hasMultiplePages 
-                  ? `Analyzed ${analysis.pages.length} pages with an average SEO score of ${analysis.seoMetrics.score}/100`
-                  : `Your website scores ${analysis.seoMetrics.score} out of 100 based on semantic SEO factors`
+                  ? `Analyzed ${analysis?.pages?.length || 0} pages with an average SEO score of ${analysis?.seoMetrics?.score || 0}/100`
+                  : `Your website scores ${analysis?.seoMetrics?.score || 0} out of 100 based on semantic SEO factors`
                 }
               </p>
             </div>
@@ -219,18 +219,18 @@ const AnalysisResults = ({ analysis, onRetry }) => {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Analysis Summary</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+<div>
                     <h4 className="font-medium text-slate-300 mb-3">Top Topics</h4>
                     <div className="space-y-2">
-                      {analysis.topics.slice(0, 5).map((topic, index) => (
+                      {(analysis?.topics || []).slice(0, 5).map((topic, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
-                          <span className="text-white">{topic.name}</span>
+                          <span className="text-white">{topic?.name || 'Unknown Topic'}</span>
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm text-slate-400">Relevance: {topic.relevance}%</span>
+                            <span className="text-sm text-slate-400">Relevance: {topic?.relevance || topic?.crossPageRelevance || 0}%</span>
                             <div className="w-12 bg-slate-700 rounded-full h-2">
                               <div 
                                 className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${topic.relevance}%` }}
+                                style={{ width: `${topic?.relevance || topic?.crossPageRelevance || 0}%` }}
                               />
                             </div>
                           </div>

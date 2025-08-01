@@ -19,27 +19,60 @@ const AnalysisPage = () => {
     }
   }, [id, analysis]);
 
-  const loadAnalysis = async () => {
+const loadAnalysis = async () => {
     try {
       setLoading(true);
       setError("");
       const result = await analysisService.getById(parseInt(id));
-      setAnalysis(result);
+      
+      // Validate analysis data structure
+      if (!result || typeof result !== 'object') {
+        throw new Error('Invalid analysis data received');
+      }
+      
+      // Ensure required properties exist
+      const validatedResult = {
+        ...result,
+        topics: result.topics || [],
+        pages: result.pages || [],
+        seoMetrics: result.seoMetrics || { score: 0 },
+        entities: result.entities || [],
+        url: result.url || 'Unknown URL'
+      };
+      
+      setAnalysis(validatedResult);
     } catch (err) {
+      console.error('Analysis loading error:', err);
       setError(err.message || "Failed to load analysis");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRetry = async () => {
+const handleRetry = async () => {
     if (analysis?.url) {
       try {
         setLoading(true);
         setError("");
         const result = await analysisService.analyzeUrl(analysis.url);
-        setAnalysis(result);
+        
+        // Validate retry result
+        if (!result || typeof result !== 'object') {
+          throw new Error('Invalid analysis data received from retry');
+        }
+        
+        const validatedResult = {
+          ...result,
+          topics: result.topics || [],
+          pages: result.pages || [],
+          seoMetrics: result.seoMetrics || { score: 0 },
+          entities: result.entities || [],
+          url: result.url || analysis.url
+        };
+        
+        setAnalysis(validatedResult);
       } catch (err) {
+        console.error('Analysis retry error:', err);
         setError(err.message || "Failed to retry analysis");
       } finally {
         setLoading(false);
